@@ -72,13 +72,25 @@ export default async function HomePage() {
               <span className="w-1.5 h-1.5 rounded-full bg-bullish animate-pulse-glow" />
               Live Feed
             </div>
-            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-3">
+            <h1
+              className="text-4xl sm:text-5xl font-bold tracking-tight mb-3"
+              style={{ fontFamily: "var(--font-serif)" }}
+            >
               <span className="text-primary">CryptoDay</span> News
             </h1>
             <p className="text-xs text-text-dim max-w-2xl leading-relaxed">
               AI-powered crypto news aggregation and sentiment analysis.{" "}
               {SOURCES.length} sources harvested hourly, analyzed by{" "}
-              <span className="text-text-muted">Qwen 3.5 Plus</span>.
+              <span className="text-text-muted">Qwen 3.5 Plus</span>, and designed by{" "}
+              <a
+                href="https://x.com/helloluis"
+                className="text-primary hover:text-primary-light transition-colors"
+                target="_blank"
+                rel="noopener"
+              >
+                @helloluis
+              </a>
+              .
             </p>
           </div>
         </div>
