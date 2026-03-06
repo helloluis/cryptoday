@@ -7,10 +7,27 @@ const parser = new RssParser({
   headers: {
     "User-Agent": "CryptoDayNewsBot/1.0",
   },
+  customFields: {
+    item: [["dc:contributor", "dcContributor"]],
+  },
 });
 
 function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractOriginalSource(item: any, slug: string): string | null {
+  // Google News: title format is "Headline - Source Name"
+  if (slug === "googlenews") {
+    const match = item.title?.match(/\s+-\s+([^-]+)$/);
+    return match ? match[1].trim() : null;
+  }
+  // GlobeNewsWire: dc:contributor contains the company name
+  if (slug === "globenewswire") {
+    return item.dcContributor?.trim() || null;
+  }
+  return null;
 }
 
 export async function harvestSource(source: FeedSource): Promise<number> {
@@ -36,11 +53,25 @@ export async function harvestSource(source: FeedSource): Promise<number> {
         ? new Date(item.pubDate)
         : new Date();
 
+      // For aggregator sources, extract the original publication name
+      let displaySource = source.name;
+      let displayTitle = item.title.trim();
+      if (source.isAggregator) {
+        const originalPub = extractOriginalSource(item, source.slug);
+        if (originalPub) {
+          displaySource = `${source.name} (${originalPub})`;
+        }
+        // Google News appends " - SourceName" to titles — strip it
+        if (source.slug === "googlenews") {
+          displayTitle = displayTitle.replace(/\s+-\s+[^-]+$/, "");
+        }
+      }
+
       await prisma.article.create({
         data: {
-          title: item.title.trim(),
+          title: displayTitle,
           url,
-          source: source.name,
+          source: displaySource,
           sourceSlug: source.slug,
           publishedAt,
           content: content?.slice(0, 2000),

@@ -3,6 +3,7 @@ export interface FeedSource {
   slug: string;
   feedUrl: string;
   website: string;
+  isAggregator?: boolean;
 }
 
 export const SOURCES: FeedSource[] = [
@@ -101,11 +102,13 @@ export const SOURCES: FeedSource[] = [
     slug: "googlenews",
     feedUrl: "https://news.google.com/rss/search?q=cryptocurrency+OR+bitcoin+OR+blockchain&hl=en-US&gl=US&ceid=US:en",
     website: "news.google.com",
+    isAggregator: true,
   },
   {
     name: "GlobeNewsWire",
     slug: "globenewswire",
     feedUrl: "https://www.globenewswire.com/RssFeed/subjectcode/58-Blockchain/feedTitle/GlobeNewswire%20-%20Blockchain",
     website: "globenewswire.com",
+    isAggregator: true,
   },
 ];
