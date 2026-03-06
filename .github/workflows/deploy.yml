@@ -16,9 +16,11 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
             cd /var/www/cryptoday
             git pull origin main
-            npm install --production
+            npm install
             npx prisma generate
             npx prisma db push --accept-data-loss
             npm run build
