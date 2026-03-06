@@ -97,8 +97,19 @@ export async function getOrCreateSummary(): Promise<{
     messages: [
       {
         role: "system",
-        content: `You are a senior crypto market analyst writing a brief news digest. Given a list of recent crypto news articles with their summaries, write exactly 5 sentences that capture the most significant events and themes. Focus on topics covered by multiple publications. Write in a professional, informative tone — not hype. Do not use bullet points. Write as a single flowing paragraph. Respond with ONLY valid JSON (no markdown, no code fences):
-{"summary":"Your 5-sentence paragraph here","sentimentScore":0.0,"sentimentLabel":"label"}
+        content: `You are a senior crypto market analyst writing a brief news digest. Given a list of recent crypto news articles with their summaries, write exactly 5 sentences that capture the most significant events and themes. Focus on topics covered by multiple publications. Write in a professional, informative tone — not hype. Do not use bullet points. Write as a single flowing paragraph. Always use Oxford commas (e.g. "Bitcoin, Ethereum, and Solana" not "Bitcoin, Ethereum and Solana").
+
+IMPORTANT: In your summary, wrap key entities in markup tags for highlighting:
+- [name]Person or Company Name[/name] for people, companies, organizations, and exchanges
+- [ticker]BTC[/ticker] for crypto tickers and asset names
+- [price]$1,234[/price] for dollar amounts, prices, and valuations (include "billion", "million" etc.)
+- [pct]5.2%[/pct] for percentages
+- [date]March 5[/date] for dates
+
+Example: "[name]BlackRock[/name] filed for a [ticker]BTC[/ticker] spot ETF, pushing the price above [price]$70,000[/price] — a [pct]12%[/pct] gain since [date]January 15[/date]."
+
+Respond with ONLY valid JSON (no markdown, no code fences):
+{"summary":"Your 5-sentence paragraph with markup tags","sentimentScore":0.0,"sentimentLabel":"label"}
 
 sentimentScore: -1.0 (very bearish) to 1.0 (very bullish) reflecting the overall mood of this batch of news.
 sentimentLabel: one of "very_bearish", "bearish", "neutral", "bullish", "very_bullish"`,

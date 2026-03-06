@@ -29,40 +29,46 @@ function formatPeriod(date: Date | null): string {
   return `${dateFmt}, ${fmt(d)}\u2013${fmt(end)} UTC`;
 }
 
+const TAG_STYLES: Record<string, { bg: string; color: string }> = {
+  name: { bg: "var(--color-highlight-letter)", color: "var(--color-highlight-letter-text)" },
+  ticker: { bg: "var(--color-highlight-letter)", color: "var(--color-highlight-letter-text)" },
+  price: { bg: "var(--color-highlight-number)", color: "var(--color-highlight-number-text)" },
+  pct: { bg: "var(--color-highlight-number)", color: "var(--color-highlight-number-text)" },
+  date: { bg: "var(--color-highlight-number)", color: "var(--color-highlight-number-text)" },
+};
+
 function highlightText(text: string): ReactNode[] {
-  const pattern = /(\$[\d,.]+(?:\s*(?:billion|million|trillion))?|\d+(?:\.\d+)?%|\b[A-Z]{2,}(?:-[A-Z]+)*\b|\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:,?\s*\d{4})?)/g;
+  const pattern = /\[(name|ticker|price|pct|date)\](.*?)\[\/\1\]/g;
 
   const parts: ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
+  let key = 0;
 
   while ((match = pattern.exec(text)) !== null) {
     if (match.index > lastIndex) {
       parts.push(text.slice(lastIndex, match.index));
     }
 
-    const matched = match[0];
-    const isNumber = /^[\$\d]/.test(matched);
+    const tag = match[1];
+    const content = match[2];
+    const style = TAG_STYLES[tag] || TAG_STYLES.name;
 
     parts.push(
       <span
-        key={match.index}
+        key={key++}
         style={{
-          backgroundColor: isNumber
-            ? "var(--color-highlight-number)"
-            : "var(--color-highlight-letter)",
-          color: isNumber
-            ? "var(--color-highlight-number-text)"
-            : "var(--color-highlight-letter-text)",
+          backgroundColor: style.bg,
+          color: style.color,
           padding: "0.05em 0.25em",
           borderRadius: "3px",
         }}
       >
-        {matched}
+        {content}
       </span>
     );
 
-    lastIndex = match.index + matched.length;
+    lastIndex = match.index + match[0].length;
   }
 
   if (lastIndex < text.length) {
@@ -96,8 +102,19 @@ export function NewsSummary({ summary, sentimentScore, sentimentLabel, periodSta
     ? (sentimentScore > 0 ? `+${sentimentScore.toFixed(2)}` : sentimentScore.toFixed(2))
     : null;
 
-  const firstLetter = summary.charAt(0);
-  const restOfText = summary.slice(1);
+  // Strip markup tags to get plain text for the drop cap
+  const stripped = summary.replace(/\[(name|ticker|price|pct|date)\](.*?)\[\/\1\]/g, "$2");
+  const firstLetter = stripped.charAt(0);
+  // Remove the first plain-text character from the raw summary (may be inside or outside a tag)
+  const tagAtStart = summary.match(/^\[(?:name|ticker|price|pct|date)\]/);
+  let restOfSummary: string;
+  if (tagAtStart) {
+    // First char is inside a tag — remove it from inside the tag content
+    const afterOpen = summary.slice(tagAtStart[0].length);
+    restOfSummary = tagAtStart[0] + afterOpen.slice(1);
+  } else {
+    restOfSummary = summary.slice(1);
+  }
 
   return (
     <div className="rounded-lg border border-border bg-surface-card p-6 sm:p-8">
@@ -111,7 +128,7 @@ export function NewsSummary({ summary, sentimentScore, sentimentLabel, periodSta
         >
           {firstLetter}
         </span>
-        {highlightText(restOfText)}
+        {highlightText(restOfSummary)}
       </p>
       <div className="clear-both flex flex-wrap items-center gap-4 mt-5 pt-4 border-t border-border text-xs text-text-dim">
         <span>{formatPeriod(periodStart)}</span>
