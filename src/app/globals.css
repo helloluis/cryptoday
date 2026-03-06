@@ -48,6 +48,14 @@ body {
   50% { opacity: 1; }
 }
 
+.summary-dropcap::first-letter {
+  initial-letter: 2;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  color: var(--color-primary);
+  margin-right: 0.15em;
+}
+
 .animate-fade-in {
   animation: fade-in 0.6s ease-out forwards;
 }

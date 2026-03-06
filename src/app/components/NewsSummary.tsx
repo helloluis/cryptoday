@@ -102,33 +102,13 @@ export function NewsSummary({ summary, sentimentScore, sentimentLabel, periodSta
     ? (sentimentScore > 0 ? `+${sentimentScore.toFixed(2)}` : sentimentScore.toFixed(2))
     : null;
 
-  // Strip markup tags to get plain text for the drop cap
-  const stripped = summary.replace(/\[(name|ticker|price|pct|date)\](.*?)\[\/\1\]/g, "$2");
-  const firstLetter = stripped.charAt(0);
-  // Remove the first plain-text character from the raw summary (may be inside or outside a tag)
-  const tagAtStart = summary.match(/^\[(?:name|ticker|price|pct|date)\]/);
-  let restOfSummary: string;
-  if (tagAtStart) {
-    // First char is inside a tag — remove it from inside the tag content
-    const afterOpen = summary.slice(tagAtStart[0].length);
-    restOfSummary = tagAtStart[0] + afterOpen.slice(1);
-  } else {
-    restOfSummary = summary.slice(1);
-  }
-
   return (
     <div className="rounded-lg border border-border bg-surface-card p-6 sm:p-8">
       <p
-        className="text-lg sm:text-xl leading-relaxed text-text/90 tracking-[0.01em]"
+        className="summary-dropcap text-lg sm:text-xl leading-relaxed text-text/90 tracking-[0.01em]"
         style={{ fontFamily: "var(--font-serif)" }}
       >
-        <span
-          className="float-left text-[3.2em] font-semibold leading-none mr-2 text-primary overflow-hidden"
-          style={{ fontFamily: "var(--font-serif)", height: "2.05lh" }}
-        >
-          {firstLetter}
-        </span>
-        {highlightText(restOfSummary)}
+        {highlightText(summary)}
       </p>
       <div className="clear-both flex flex-wrap items-center gap-4 mt-5 pt-4 border-t border-border text-xs text-text-dim">
         <span>{formatPeriod(periodStart)}</span>
