@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { harvestStaggered, harvestAll } from "@/lib/harvester";
+import { harvestXTimeline } from "@/lib/x-harvester";
 import { analyzeUnprocessed } from "@/lib/analyzer";
 import { getOrCreateSummary, getCurrentPeriodStart } from "@/lib/summary";
 import { prisma } from "@/lib/db";
@@ -21,6 +22,10 @@ export async function POST(request: NextRequest) {
   } else {
     results = await harvestAll();
   }
+
+  // Harvest X timeline alongside RSS feeds
+  const xAdded = await harvestXTimeline();
+  results.push({ source: "X Timeline", added: xAdded });
 
   const totalAdded = results.reduce((sum, r) => sum + r.added, 0);
 
