@@ -96,4 +96,16 @@ export const SOURCES: FeedSource[] = [
     feedUrl: "https://watcher.guru/news/feed",
     website: "watcher.guru",
   },
+  {
+    name: "Google News",
+    slug: "googlenews",
+    feedUrl: "https://news.google.com/rss/search?q=cryptocurrency+OR+bitcoin+OR+blockchain&hl=en-US&gl=US&ceid=US:en",
+    website: "news.google.com",
+  },
+  {
+    name: "GlobeNewsWire",
+    slug: "globenewswire",
+    feedUrl: "https://www.globenewswire.com/RssFeed/subjectcode/58-Blockchain/feedTitle/GlobeNewswire%20-%20Blockchain",
+    website: "globenewswire.com",
+  },
 ];
