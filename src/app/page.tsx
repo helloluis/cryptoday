@@ -1,0 +1,137 @@
+import { prisma } from "@/lib/db";
+import { SOURCES } from "@/lib/sources";
+import { SampleFeed } from "./components/SampleFeed";
+import { SourceGrid } from "./components/SourceGrid";
+import { ApiDocs } from "./components/ApiDocs";
+import { Stats } from "./components/Stats";
+
+async function getStats() {
+  try {
+    const [totalArticles, analyzedArticles, latestArticle] = await Promise.all([
+      prisma.article.count(),
+      prisma.article.count({ where: { analyzed: true } }),
+      prisma.article.findFirst({ orderBy: { publishedAt: "desc" }, select: { publishedAt: true } }),
+    ]);
+    return { totalArticles, analyzedArticles, lastUpdated: latestArticle?.publishedAt ?? null };
+  } catch {
+    return { totalArticles: 0, analyzedArticles: 0, lastUpdated: null };
+  }
+}
+
+async function getSampleArticles() {
+  try {
+    return await prisma.article.findMany({
+      where: { analyzed: true },
+      orderBy: { publishedAt: "desc" },
+      take: 10,
+      select: {
+        id: true,
+        title: true,
+        url: true,
+        source: true,
+        sourceSlug: true,
+        publishedAt: true,
+        summary: true,
+        category: true,
+        sentimentScore: true,
+        sentimentLabel: true,
+      },
+    });
+  } catch {
+    return [];
+  }
+}
+
+export const revalidate = 300;
+
+export default async function HomePage() {
+  const [stats, sampleArticles] = await Promise.all([getStats(), getSampleArticles()]);
+
+  return (
+    <main className="min-h-screen">
+      {/* Hero */}
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent" />
+        <div className="relative max-w-5xl mx-auto px-6 pt-20 pb-16">
+          <div className="animate-fade-in">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border-light bg-surface-card text-xs text-text-muted mb-6">
+              <span className="w-1.5 h-1.5 rounded-full bg-bullish animate-pulse-glow" />
+              Live Feed
+            </div>
+            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-4">
+              <span className="text-primary">CryptoDay</span> News
+            </h1>
+            <p className="text-lg text-text-muted max-w-2xl leading-relaxed">
+              AI-powered crypto news aggregation and sentiment analysis.{" "}
+              {SOURCES.length} sources harvested hourly, analyzed by{" "}
+              <span className="text-text font-medium">Qwen 3.5 Plus</span> for
+              sentiment scoring and categorization.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Stats */}
+      <section className="max-w-5xl mx-auto px-6 pb-12">
+        <Stats
+          totalArticles={stats.totalArticles}
+          analyzedArticles={stats.analyzedArticles}
+          sourceCount={SOURCES.length}
+          lastUpdated={stats.lastUpdated}
+        />
+      </section>
+
+      {/* Sources */}
+      <section className="max-w-5xl mx-auto px-6 pb-16">
+        <div className="animate-fade-in-delay">
+          <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+            <span className="w-1 h-5 bg-primary rounded-full" />
+            Sources
+          </h2>
+          <SourceGrid sources={SOURCES} />
+        </div>
+      </section>
+
+      {/* Sample Feed */}
+      <section className="max-w-5xl mx-auto px-6 pb-16">
+        <div className="animate-fade-in-delay-2">
+          <h2 className="text-xl font-semibold mb-2 flex items-center gap-2">
+            <span className="w-1 h-5 bg-primary rounded-full" />
+            Sample Feed
+          </h2>
+          <p className="text-sm text-text-muted mb-6">
+            Latest 10 articles from the free unauthenticated JSON feed.
+          </p>
+          <SampleFeed articles={sampleArticles} />
+        </div>
+      </section>
+
+      {/* API Docs */}
+      <section className="max-w-5xl mx-auto px-6 pb-16">
+        <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+          <span className="w-1 h-5 bg-primary rounded-full" />
+          API Access
+        </h2>
+        <ApiDocs />
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-border py-8">
+        <div className="max-w-5xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-sm text-text-dim">
+            Built by{" "}
+            <a
+              href="https://e3.cryptoday.live"
+              className="text-primary hover:text-primary-light transition-colors"
+              target="_blank"
+              rel="noopener"
+            >
+              @helloluis
+            </a>
+          </p>
+          <p className="text-xs text-text-dim font-mono">news.cryptoday.live</p>
+        </div>
+      </footer>
+    </main>
+  );
+}

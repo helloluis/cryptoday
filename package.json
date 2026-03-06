@@ -1,0 +1,35 @@
+{
+  "name": "cryptoday-news",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "postinstall": "prisma generate",
+    "db:push": "prisma db push",
+    "harvest": "npx tsx src/lib/harvest-cli.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "@tailwindcss/postcss": "^4.2.1",
+    "@types/node": "^25.3.5",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "next": "^16.1.6",
+    "node-cron": "^4.2.1",
+    "openai": "^6.27.0",
+    "postcss": "^8.5.8",
+    "prisma": "^5.22.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "rss-parser": "^3.13.0",
+    "tailwindcss": "^4.2.1",
+    "typescript": "^5.9.3",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/node-cron": "^3.0.11",
+    "@types/uuid": "^10.0.0"
+  }
+}

@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Article {
+  id            String   @id @default(uuid())
+  title         String
+  url           String   @unique
+  source        String
+  sourceSlug    String
+  publishedAt   DateTime
+  fetchedAt     DateTime @default(now())
+  content       String?
+  summary       String?
+  category      String   @default("ALL")
+  sentimentScore Float?
+  sentimentLabel String?
+  analyzed      Boolean  @default(false)
+
+  @@index([publishedAt])
+  @@index([source])
+  @@index([category])
+  @@index([analyzed])
+}
+
+model ApiKey {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model Source {
+  id       String  @id @default(uuid())
+  name     String
+  slug     String  @unique
+  feedUrl  String
+  active   Boolean @default(true)
+  category String  @default("ALL")
+}
