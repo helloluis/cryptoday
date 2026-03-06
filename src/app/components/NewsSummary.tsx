@@ -106,8 +106,8 @@ export function NewsSummary({ summary, sentimentScore, sentimentLabel, periodSta
         style={{ fontFamily: "var(--font-serif)" }}
       >
         <span
-          className="float-left text-[3.4em] font-semibold leading-[0.75] mr-2 -mt-[0.05em] text-primary"
-          style={{ fontFamily: "var(--font-serif)" }}
+          className="float-left text-[3.2em] font-semibold leading-none mr-2 text-primary overflow-hidden"
+          style={{ fontFamily: "var(--font-serif)", height: "2.05lh" }}
         >
           {firstLetter}
         </span>
