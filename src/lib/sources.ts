@@ -90,4 +90,10 @@ export const SOURCES: FeedSource[] = [
     feedUrl: "https://bitpinas.com/feed/",
     website: "bitpinas.com",
   },
+  {
+    name: "Watcher Guru",
+    slug: "watcherguru",
+    feedUrl: "https://watcher.guru/news/feed",
+    website: "watcher.guru",
+  },
 ];
