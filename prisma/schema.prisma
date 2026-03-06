@@ -36,6 +36,19 @@ model ApiKey {
   createdAt DateTime @default(now())
 }
 
+model NewsSummary {
+  id             String   @id @default(uuid())
+  periodStart    DateTime @unique
+  periodEnd      DateTime
+  summary        String
+  sentimentScore Float
+  sentimentLabel String
+  articleCount   Int
+  createdAt      DateTime @default(now())
+
+  @@index([periodStart])
+}
+
 model Source {
   id       String  @id @default(uuid())
   name     String

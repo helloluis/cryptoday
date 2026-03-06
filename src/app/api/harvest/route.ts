@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { harvestStaggered, harvestAll } from "@/lib/harvester";
 import { analyzeUnprocessed } from "@/lib/analyzer";
+import { getOrCreateSummary, getCurrentPeriodStart } from "@/lib/summary";
+import { prisma } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -31,10 +33,20 @@ export async function POST(request: NextRequest) {
   const remainingUnanalyzed = await analyzeUnprocessed(20);
   analyzed += remainingUnanalyzed;
 
+  // Generate summary if we don't have one for the current period
+  let summaryGenerated = false;
+  const periodStart = getCurrentPeriodStart();
+  const existingSummary = await prisma.newsSummary.findUnique({ where: { periodStart } });
+  if (!existingSummary) {
+    await getOrCreateSummary();
+    summaryGenerated = true;
+  }
+
   return NextResponse.json({
     results,
     totalAdded,
     analyzed,
+    summaryGenerated,
     timestamp: new Date().toISOString(),
   });
 }

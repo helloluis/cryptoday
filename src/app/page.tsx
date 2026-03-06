@@ -1,9 +1,11 @@
 import { prisma } from "@/lib/db";
 import { SOURCES } from "@/lib/sources";
+import { getOrCreateSummary } from "@/lib/summary";
 import { SampleFeed } from "./components/SampleFeed";
 import { SourceGrid } from "./components/SourceGrid";
 import { ApiDocs } from "./components/ApiDocs";
 import { Stats } from "./components/Stats";
+import { NewsSummary } from "./components/NewsSummary";
 
 async function getStats() {
   try {
@@ -42,10 +44,22 @@ async function getSampleArticles() {
   }
 }
 
+async function getSummary() {
+  try {
+    return await getOrCreateSummary();
+  } catch {
+    return null;
+  }
+}
+
 export const revalidate = 300;
 
 export default async function HomePage() {
-  const [stats, sampleArticles] = await Promise.all([getStats(), getSampleArticles()]);
+  const [stats, sampleArticles, summary] = await Promise.all([
+    getStats(),
+    getSampleArticles(),
+    getSummary(),
+  ]);
 
   return (
     <main className="min-h-screen">
@@ -58,18 +72,32 @@ export default async function HomePage() {
               <span className="w-1.5 h-1.5 rounded-full bg-bullish animate-pulse-glow" />
               Live Feed
             </div>
-            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-4">
+            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-3">
               <span className="text-primary">CryptoDay</span> News
             </h1>
-            <p className="text-lg text-text-muted max-w-2xl leading-relaxed">
+            <p className="text-xs text-text-dim max-w-2xl leading-relaxed">
               AI-powered crypto news aggregation and sentiment analysis.{" "}
               {SOURCES.length} sources harvested hourly, analyzed by{" "}
-              <span className="text-text font-medium">Qwen 3.5 Plus</span> for
-              sentiment scoring and categorization.
+              <span className="text-text-muted">Qwen 3.5 Plus</span>.
             </p>
           </div>
         </div>
       </section>
+
+      {/* News Summary */}
+      {summary && (
+        <section className="max-w-5xl mx-auto px-6 pb-12">
+          <div className="animate-fade-in">
+            <NewsSummary
+              summary={summary.summary}
+              sentimentScore={summary.sentimentScore}
+              sentimentLabel={summary.sentimentLabel}
+              periodStart={summary.periodStart}
+              articleCount={summary.articleCount}
+            />
+          </div>
+        </section>
+      )}
 
       {/* Stats */}
       <section className="max-w-5xl mx-auto px-6 pb-12">
