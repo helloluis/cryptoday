@@ -1,3 +1,7 @@
+"use client";
+
+import { type ReactNode } from "react";
+
 interface NewsSummaryProps {
   summary: string | null;
   sentimentScore: number | null;
@@ -22,7 +26,50 @@ function formatPeriod(date: Date | null): string {
     day: "numeric",
     timeZone: "UTC",
   }).format(d);
-  return `${dateFmt}, ${fmt(d)}–${fmt(end)} UTC`;
+  return `${dateFmt}, ${fmt(d)}\u2013${fmt(end)} UTC`;
+}
+
+function highlightText(text: string): ReactNode[] {
+  const pattern = /(\$[\d,.]+(?:\s*(?:billion|million|trillion))?|\d+(?:\.\d+)?%|\b[A-Z]{2,}(?:-[A-Z]+)*\b|\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:,?\s*\d{4})?)/g;
+
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+
+    const matched = match[0];
+    const isNumber = /^[\$\d]/.test(matched);
+
+    parts.push(
+      <span
+        key={match.index}
+        style={{
+          backgroundColor: isNumber
+            ? "var(--color-highlight-number)"
+            : "var(--color-highlight-letter)",
+          color: isNumber
+            ? "var(--color-highlight-number-text)"
+            : "var(--color-highlight-letter-text)",
+          padding: "0.05em 0.25em",
+          borderRadius: "3px",
+        }}
+      >
+        {matched}
+      </span>
+    );
+
+    lastIndex = match.index + matched.length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts;
 }
 
 export function NewsSummary({ summary, sentimentScore, sentimentLabel, periodStart, articleCount }: NewsSummaryProps) {
@@ -36,7 +83,7 @@ export function NewsSummary({ summary, sentimentScore, sentimentLabel, periodSta
     very_bearish: "text-bearish",
   };
 
-  const sentimentIcons: Record<string, string> = {
+  const sentimentLabels: Record<string, string> = {
     very_bullish: "Strongly Bullish",
     bullish: "Bullish",
     neutral: "Neutral",
@@ -49,17 +96,29 @@ export function NewsSummary({ summary, sentimentScore, sentimentLabel, periodSta
     ? (sentimentScore > 0 ? `+${sentimentScore.toFixed(2)}` : sentimentScore.toFixed(2))
     : null;
 
+  const firstLetter = summary.charAt(0);
+  const restOfText = summary.slice(1);
+
   return (
-    <div className="rounded-lg border border-border bg-surface-card p-6">
-      <p className="text-base leading-relaxed text-text/90">
-        {summary}
+    <div className="rounded-lg border border-border bg-surface-card p-6 sm:p-8">
+      <p
+        className="text-lg sm:text-xl leading-relaxed text-text/90 tracking-[0.01em]"
+        style={{ fontFamily: "var(--font-serif)" }}
+      >
+        <span
+          className="float-left text-5xl sm:text-6xl font-semibold leading-[0.8] mr-3 mt-1.5 text-primary"
+          style={{ fontFamily: "var(--font-serif)" }}
+        >
+          {firstLetter}
+        </span>
+        {highlightText(restOfText)}
       </p>
-      <div className="flex items-center gap-4 mt-4 text-xs text-text-dim">
+      <div className="clear-both flex flex-wrap items-center gap-4 mt-5 pt-4 border-t border-border text-xs text-text-dim">
         <span>{formatPeriod(periodStart)}</span>
         {articleCount && <span>{articleCount} articles</span>}
         {displayScore && (
           <span className={`font-mono ${colorClass}`}>
-            {sentimentIcons[sentimentLabel || "neutral"]} ({displayScore})
+            {sentimentLabels[sentimentLabel || "neutral"]} ({displayScore})
           </span>
         )}
       </div>

@@ -16,7 +16,12 @@
   --color-bullish: #22c55e;
   --color-bearish: #ef4444;
   --color-neutral-accent: #94a3b8;
+  --color-highlight-letter: rgba(250, 230, 140, 0.12);
+  --color-highlight-letter-text: #e8d48b;
+  --color-highlight-number: rgba(140, 180, 250, 0.12);
+  --color-highlight-number-text: #8bb4fa;
   --font-sans: "Inter", "Geist", system-ui, -apple-system, sans-serif;
+  --font-serif: "Lora", "Georgia", "Times New Roman", serif;
   --font-mono: "Geist Mono", "JetBrains Mono", "Fira Code", monospace;
 }
 
