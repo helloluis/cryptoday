@@ -9,3 +9,11 @@ export async function validateApiKey(key: string | null): Promise<boolean> {
 
   return !!apiKey;
 }
+
+export async function getApiKey(key: string | null) {
+  if (!key) return null;
+
+  return prisma.apiKey.findUnique({
+    where: { key, active: true },
+  });
+}

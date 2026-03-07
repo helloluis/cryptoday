@@ -1,18 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { validateApiKey } from "@/lib/auth";
+import { validateApiKey, getApiKey } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   const apiKey = request.headers.get("x-api-key");
   const category = request.nextUrl.searchParams.get("category");
   const source = request.nextUrl.searchParams.get("source");
+  const scope = request.nextUrl.searchParams.get("scope");
   const page = parseInt(request.nextUrl.searchParams.get("page") || "1");
 
   const isAuthenticated = await validateApiKey(apiKey);
   const limit = isAuthenticated ? 50 : 10;
   const skip = isAuthenticated ? (page - 1) * limit : 0;
 
-  const where: Record<string, unknown> = { analyzed: true };
+  const where: Record<string, unknown> = {};
+
+  // scope=custom returns only the user's private custom search articles
+  if (scope === "custom" && isAuthenticated) {
+    const apiKeyRecord = await getApiKey(apiKey);
+    where.apiKeyId = apiKeyRecord!.id;
+  } else {
+    // Default: only show analyzed public articles (no custom search articles)
+    where.analyzed = true;
+    where.apiKeyId = null;
+  }
+
   if (category) where.category = category.toUpperCase();
   if (source) where.sourceSlug = source;
 

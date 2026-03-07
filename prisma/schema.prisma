@@ -8,32 +8,49 @@ datasource db {
 }
 
 model Article {
-  id            String   @id @default(uuid())
-  title         String
-  url           String   @unique
-  source        String
-  sourceSlug    String
-  publishedAt   DateTime
-  fetchedAt     DateTime @default(now())
-  content       String?
-  summary       String?
-  category      String   @default("ALL")
+  id             String   @id @default(uuid())
+  title          String
+  url            String   @unique
+  source         String
+  sourceSlug     String
+  publishedAt    DateTime
+  fetchedAt      DateTime @default(now())
+  content        String?
+  summary        String?
+  category       String   @default("ALL")
   sentimentScore Float?
   sentimentLabel String?
-  analyzed      Boolean  @default(false)
+  analyzed       Boolean  @default(false)
+  apiKeyId       String?
+  searchQuery    String?
 
   @@index([publishedAt])
   @@index([source])
   @@index([category])
   @@index([analyzed])
+  @@index([apiKeyId])
 }
 
 model ApiKey {
+  id             String         @id @default(uuid())
+  key            String         @unique
+  name           String
+  active         Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  customSearches CustomSearch[]
+}
+
+model CustomSearch {
   id        String   @id @default(uuid())
-  key       String   @unique
-  name      String
+  query     String
+  provider  String   @default("google") // "google", "gnw", "both"
   active    Boolean  @default(true)
+  apiKeyId  String
+  apiKey    ApiKey   @relation(fields: [apiKeyId], references: [id])
   createdAt DateTime @default(now())
+
+  @@index([apiKeyId])
+  @@unique([apiKeyId, query])
 }
 
 model NewsSummary {
