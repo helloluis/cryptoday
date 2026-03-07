@@ -84,10 +84,14 @@ export async function getOrCreateSummary(): Promise<{
     if (articles.length === 0) return null;
   }
 
-  // Build the article digest for the AI
+  // Build the article digest for the AI — label tweets separately
   const digest = articles
     .slice(0, 40)
-    .map((a, i) => `${i + 1}. [${a.source}] ${a.title}${a.summary ? ` — ${a.summary}` : ""}`)
+    .map((a, i) => {
+      const isTwitter = a.source.startsWith("X (");
+      const tag = isTwitter ? "TWEET" : "ARTICLE";
+      return `${i + 1}. [${tag}][${a.source}] ${a.title}${a.summary ? ` — ${a.summary}` : ""}`;
+    })
     .join("\n");
 
   const avgSentiment = articles.reduce((sum, a) => sum + (a.sentimentScore || 0), 0) / articles.length;
@@ -97,7 +101,9 @@ export async function getOrCreateSummary(): Promise<{
     messages: [
       {
         role: "system",
-        content: `You are a senior crypto market analyst writing a brief news digest. Given a list of recent crypto news articles with their summaries, write exactly 5 sentences that capture the most significant events and themes. Focus on topics covered by multiple publications. Write in a professional, informative tone — not hype. Do not use bullet points. Write as a single flowing paragraph. Always use Oxford commas (e.g. "Bitcoin, Ethereum, and Solana" not "Bitcoin, Ethereum and Solana").
+        content: `You are a senior crypto market analyst writing a brief news digest. Given a list of recent crypto news items, write exactly 5 sentences that capture the most significant events and themes. Focus on topics covered by multiple publications. Write in a professional, informative tone — not hype. Do not use bullet points. Write as a single flowing paragraph. Always use Oxford commas (e.g. "Bitcoin, Ethereum, and Solana" not "Bitcoin, Ethereum and Solana").
+
+Items tagged [ARTICLE] are from professional news outlets and should be your primary source of information. Items tagged [TWEET] are from social media and have a lower standard of accuracy — use them only as supporting color or to note community sentiment, never as the sole basis for a claim.
 
 IMPORTANT: In your summary, wrap key entities in markup tags for highlighting:
 - [name]Person or Company Name[/name] for people, companies, organizations, and exchanges
