@@ -55,6 +55,49 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function PATCH(request: NextRequest) {
+  const apiKeyRecord = await getApiKey(request.headers.get("x-api-key"));
+  if (!apiKeyRecord) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await request.json().catch(() => null);
+  if (!body?.id) {
+    return NextResponse.json({ error: "Missing 'id' field" }, { status: 400 });
+  }
+
+  // Verify ownership
+  const existing = await prisma.customSearch.findFirst({
+    where: { id: body.id, apiKeyId: apiKeyRecord.id },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: "Search not found" }, { status: 404 });
+  }
+
+  const update: Record<string, unknown> = {};
+  if (typeof body.query === "string") update.query = body.query.trim().slice(0, 200);
+  if (VALID_PROVIDERS.includes(body.provider)) update.provider = body.provider;
+  if (typeof body.active === "boolean") update.active = body.active;
+
+  if (Object.keys(update).length === 0) {
+    return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+  }
+
+  try {
+    const search = await prisma.customSearch.update({
+      where: { id: body.id },
+      data: update,
+      select: { id: true, query: true, provider: true, active: true, createdAt: true },
+    });
+    return NextResponse.json({ search });
+  } catch (error) {
+    if ((error as { code?: string }).code === "P2002") {
+      return NextResponse.json({ error: "Search query already exists" }, { status: 409 });
+    }
+    throw error;
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   const apiKeyRecord = await getApiKey(request.headers.get("x-api-key"));
   if (!apiKeyRecord) {
