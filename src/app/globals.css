@@ -76,4 +76,9 @@ body {
 
 .crypto-logo-mono {
   opacity: 0.3;
+  transition: opacity 0.2s ease;
+}
+
+.group:hover .crypto-logo-mono {
+  opacity: 0.8;
 }

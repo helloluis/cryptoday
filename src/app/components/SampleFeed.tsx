@@ -66,6 +66,8 @@ const BRAND_LOGOS: [RegExp, string][] = [
   [/\b(pepe)\b/i, "pepe-pepe-logo.svg"],
   [/\b(the graph|grt)\b/i, "the-graph-grt-logo.svg"],
   [/\b(fetch\.ai|fet)\b/i, "fetch-ai-fet-logo.svg"],
+  [/\b(shiba inu|shib)\b/i, "shiba-inu-shib-logo.svg"],
+  [/\b(toncoin|ton)\b/i, "toncoin-ton-logo.svg"],
   // Exchanges & companies
   [/\b(coinbase)\b/i, "coinbase-logo.svg"],
   [/\b(binance)\b/i, "binance-logo.svg"],
@@ -124,6 +126,8 @@ const CATEGORY_LOGOS: Record<string, string> = {
   PEPE: "pepe-pepe-logo.svg",
   GRT: "the-graph-grt-logo.svg",
   FET: "fetch-ai-fet-logo.svg",
+  SHIB: "shiba-inu-shib-logo.svg",
+  TON: "toncoin-ton-logo.svg",
 };
 
 interface DynamicLogo {
@@ -132,23 +136,87 @@ interface DynamicLogo {
   filename: string;
 }
 
-function getLogoForArticle(article: Article, dynamicLogos: DynamicLogo[] = []): string | null {
-  // First try category match
-  const catLogo = CATEGORY_LOGOS[article.category];
-  if (catLogo) return `/logos/${catLogo}`;
+// People/faces get circular crop treatment
+const PERSON_LOGOS: [RegExp, string][] = [
+  [/\b(trump)\b/i, "trump.jpg"],
+  [/\b(elon musk|musk)\b/i, "elon-musk.jpg"],
+  [/\b(jack dorsey|dorsey)\b/i, "jack-dorsey.jpg"],
+  [/\b(michael saylor|saylor)\b/i, "michael-saylor.png"],
+  [/\b(vitalik buterin|vitalik)\b/i, "vitalik-buterin.jpg"],
+  [/\b(sam bankman|sbf)\b/i, "sbf.png"],
+  [/\b(changpeng zhao|cz)\b/i, "cz.jpg"],
+  [/\b(gary gensler|gensler)\b/i, "gary-gensler.jpg"],
+  [/\b(cathie wood)\b/i, "cathie-wood.jpg"],
+  [/\b(brian armstrong)\b/i, "brian-armstrong.jpg"],
+];
 
-  // Then try title keyword match (hardcoded)
+// Country/region flags matched by keyword in title
+const COUNTRY_FLAGS: [RegExp, string][] = [
+  [/\bkazakhstan\b/i, "🇰🇿"],
+  [/\b(united states|u\.s\.|us congress|sec |irs |american)\b/i, "🇺🇸"],
+  [/\bflorida\b/i, "🇺🇸"],
+  [/\b(china|chinese|beijing)\b/i, "🇨🇳"],
+  [/\b(japan|japanese|tokyo)\b/i, "🇯🇵"],
+  [/\b(south korea|korean|seoul)\b/i, "🇰🇷"],
+  [/\b(india|indian|mumbai)\b/i, "🇮🇳"],
+  [/\b(uk|britain|british|london)\b/i, "🇬🇧"],
+  [/\b(eu|europe|european|brussels)\b/i, "🇪🇺"],
+  [/\b(russia|russian|moscow)\b/i, "🇷🇺"],
+  [/\b(brazil|brazilian)\b/i, "🇧🇷"],
+  [/\b(canada|canadian)\b/i, "🇨🇦"],
+  [/\b(australia|australian)\b/i, "🇦🇺"],
+  [/\b(singapore|singaporean)\b/i, "🇸🇬"],
+  [/\b(hong kong)\b/i, "🇭🇰"],
+  [/\b(uae|dubai|abu dhabi|emirates)\b/i, "🇦🇪"],
+  [/\b(nigeria|nigerian)\b/i, "🇳🇬"],
+  [/\b(el salvador|salvadoran)\b/i, "🇸🇻"],
+  [/\b(philippines|filipino|coins\.ph)\b/i, "🇵🇭"],
+  [/\b(latin america)\b/i, "🌎"],
+  [/\b(germany|german|berlin)\b/i, "🇩🇪"],
+  [/\b(switzerland|swiss)\b/i, "🇨🇭"],
+  [/\b(iran|iranian|tehran)\b/i, "🇮🇷"],
+  [/\b(israel|israeli)\b/i, "🇮🇱"],
+  [/\b(indonesia|indonesian)\b/i, "🇮🇩"],
+  [/\b(turkey|turkish|ankara)\b/i, "🇹🇷"],
+  [/\b(south africa|south african)\b/i, "🇿🇦"],
+  [/\b(argentina|argentinian)\b/i, "🇦🇷"],
+  [/\b(mexico|mexican)\b/i, "🇲🇽"],
+];
+
+interface LogoMatch {
+  src: string;
+  circular: boolean;
+  emoji?: string; // for flag/emoji thumbnails
+}
+
+function getLogoForArticle(article: Article, dynamicLogos: DynamicLogo[] = []): LogoMatch | null {
   const text = article.title;
+
+  // First try person match (circular photo)
+  for (const [pattern, file] of PERSON_LOGOS) {
+    if (pattern.test(text)) return { src: `/faces/${file}`, circular: true };
+  }
+
+  // Then try category match (token logo)
+  const catLogo = CATEGORY_LOGOS[article.category];
+  if (catLogo) return { src: `/logos/${catLogo}`, circular: false };
+
+  // Then try title keyword match (hardcoded brand logos)
   for (const [pattern, file] of BRAND_LOGOS) {
-    if (pattern.test(text)) return `/logos/${file}`;
+    if (pattern.test(text)) return { src: `/logos/${file}`, circular: false };
   }
 
   // Then try auto-discovered logos from DB
   const titleLower = text.toLowerCase();
   for (const logo of dynamicLogos) {
     for (const kw of logo.keywords) {
-      if (titleLower.includes(kw.toLowerCase())) return `/logos/${logo.filename}`;
+      if (titleLower.includes(kw.toLowerCase())) return { src: `/logos/${logo.filename}`, circular: false };
     }
+  }
+
+  // Finally try country flag
+  for (const [pattern, emoji] of COUNTRY_FLAGS) {
+    if (pattern.test(text)) return { src: "", circular: false, emoji };
   }
 
   return null;
@@ -221,12 +289,16 @@ function ArticleCard({ article, dynamicLogos }: { article: Article; dynamicLogos
       <div className="flex items-stretch">
         {logo && (
           <div className="w-14 shrink-0 flex items-center justify-center px-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={logo}
-              alt=""
-              className="w-8 h-8 object-contain crypto-logo-mono"
-            />
+            {logo.emoji ? (
+              <span className="text-2xl leading-none crypto-logo-mono">{logo.emoji}</span>
+            ) : (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={logo.src}
+                alt=""
+                className={`w-8 h-8 ${logo.circular ? "rounded-full object-cover" : "object-contain"} crypto-logo-mono`}
+              />
+            )}
           </div>
         )}
         <div className={`flex-1 min-w-0 p-4 ${logo ? "pl-0" : ""}`}>
