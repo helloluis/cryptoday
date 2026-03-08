@@ -74,3 +74,14 @@ model Source {
   active   Boolean @default(true)
   category String  @default("ALL")
 }
+
+model BrandLogo {
+  id        String   @id @default(uuid())
+  brand     String   @unique // canonical name e.g. "bitcoin", "coinbase"
+  keywords  String[] // matching keywords for title search
+  filename  String   // e.g. "bitcoin-btc-logo.svg"
+  source    String   @default("manual") // "manual", "auto"
+  createdAt DateTime @default(now())
+
+  @@index([brand])
+}

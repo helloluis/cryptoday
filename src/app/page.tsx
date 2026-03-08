@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { SOURCES } from "@/lib/sources";
 import { getOrCreateSummary } from "@/lib/summary";
+import { getAutoLogos } from "@/lib/logo-finder";
 import { SampleFeed } from "./components/SampleFeed";
 import { SourceGrid } from "./components/SourceGrid";
 import { ApiDocs } from "./components/ApiDocs";
@@ -52,13 +53,22 @@ async function getSummary() {
   }
 }
 
+async function getDynamicLogos() {
+  try {
+    return await getAutoLogos();
+  } catch {
+    return [];
+  }
+}
+
 export const revalidate = 300;
 
 export default async function HomePage() {
-  const [stats, sampleArticles, summary] = await Promise.all([
+  const [stats, sampleArticles, summary, dynamicLogos] = await Promise.all([
     getStats(),
     getSampleArticles(),
     getSummary(),
+    getDynamicLogos(),
   ]);
 
   return (
@@ -122,7 +132,7 @@ export default async function HomePage() {
 
       {/* Feed */}
       <section className="max-w-5xl mx-auto px-6 pb-16">
-        <SampleFeed articles={sampleArticles} />
+        <SampleFeed articles={sampleArticles} dynamicLogos={dynamicLogos} />
       </section>
 
       {/* Sources */}

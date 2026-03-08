@@ -126,15 +126,29 @@ const CATEGORY_LOGOS: Record<string, string> = {
   FET: "fetch-ai-fet-logo.svg",
 };
 
-function getLogoForArticle(article: Article): string | null {
+interface DynamicLogo {
+  brand: string;
+  keywords: string[];
+  filename: string;
+}
+
+function getLogoForArticle(article: Article, dynamicLogos: DynamicLogo[] = []): string | null {
   // First try category match
   const catLogo = CATEGORY_LOGOS[article.category];
   if (catLogo) return `/logos/${catLogo}`;
 
-  // Then try title keyword match
+  // Then try title keyword match (hardcoded)
   const text = article.title;
   for (const [pattern, file] of BRAND_LOGOS) {
     if (pattern.test(text)) return `/logos/${file}`;
+  }
+
+  // Then try auto-discovered logos from DB
+  const titleLower = text.toLowerCase();
+  for (const logo of dynamicLogos) {
+    for (const kw of logo.keywords) {
+      if (titleLower.includes(kw.toLowerCase())) return `/logos/${logo.filename}`;
+    }
   }
 
   return null;
@@ -194,58 +208,60 @@ function timeAgo(dateStr: string | Date): string {
   return `${Math.floor(seconds / 86400)}d ago`;
 }
 
-function ArticleCard({ article }: { article: Article }) {
-  const logo = getLogoForArticle(article);
+function ArticleCard({ article, dynamicLogos }: { article: Article; dynamicLogos: DynamicLogo[] }) {
+  const logo = getLogoForArticle(article, dynamicLogos);
 
   return (
     <a
       href={article.url}
       target="_blank"
       rel="noopener"
-      className="block rounded-lg border border-border bg-surface-card p-4 hover:border-border-light hover:bg-surface-hover transition-all duration-200 group"
+      className="block rounded-lg border border-border bg-surface-card hover:border-border-light hover:bg-surface-hover transition-all duration-200 group"
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex gap-3 flex-1 min-w-0">
-          {logo && (
-            <div className="w-10 h-10 shrink-0 rounded border border-border-light bg-surface-light flex items-center justify-center p-1.5">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={logo}
-                alt=""
-                className="w-full h-full object-contain crypto-logo-mono"
-              />
+      <div className="flex items-stretch">
+        {logo && (
+          <div className="w-14 shrink-0 flex items-center justify-center px-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={logo}
+              alt=""
+              className="w-8 h-8 object-contain crypto-logo-mono"
+            />
+          </div>
+        )}
+        <div className={`flex-1 min-w-0 p-4 ${logo ? "pl-0" : ""}`}>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-medium group-hover:text-primary transition-colors leading-snug">
+                {article.title}
+              </h3>
+              {article.summary && (
+                <p className="text-xs text-text-muted mt-1.5 leading-relaxed">
+                  {article.summary}
+                </p>
+              )}
+              <div className="flex items-center gap-3 mt-2">
+                <span className="text-xs text-text-dim">{article.source}</span>
+                <span
+                  className="text-xs text-text-dim cursor-default"
+                  title={formatFullDate(article.publishedAt)}
+                >
+                  {timeAgo(article.publishedAt)}
+                </span>
+              </div>
             </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-medium group-hover:text-primary transition-colors leading-snug">
-              {article.title}
-            </h3>
-            {article.summary && (
-              <p className="text-xs text-text-muted mt-1.5 leading-relaxed">
-                {article.summary}
-              </p>
-            )}
-            <div className="flex items-center gap-3 mt-2">
-              <span className="text-xs text-text-dim">{article.source}</span>
-              <span
-                className="text-xs text-text-dim cursor-default"
-                title={formatFullDate(article.publishedAt)}
-              >
-                {timeAgo(article.publishedAt)}
-              </span>
+            <div className="flex flex-col items-end gap-1.5 shrink-0">
+              <CategoryBadge category={article.category} />
+              <SentimentBadge score={article.sentimentScore} label={article.sentimentLabel} />
             </div>
           </div>
-        </div>
-        <div className="flex flex-col items-end gap-1.5 shrink-0">
-          <CategoryBadge category={article.category} />
-          <SentimentBadge score={article.sentimentScore} label={article.sentimentLabel} />
         </div>
       </div>
     </a>
   );
 }
 
-export function SampleFeed({ articles: initialArticles }: { articles: Article[] }) {
+export function SampleFeed({ articles: initialArticles, dynamicLogos = [] }: { articles: Article[]; dynamicLogos?: DynamicLogo[] }) {
   const [showJson, setShowJson] = useState(false);
   const [articles, setArticles] = useState<Article[]>(initialArticles);
   const [loading, setLoading] = useState(false);
@@ -337,7 +353,7 @@ export function SampleFeed({ articles: initialArticles }: { articles: Article[] 
       ) : (
         <div className="space-y-3">
           {articles.map((article) => (
-            <ArticleCard key={article.id} article={article} />
+            <ArticleCard key={article.id} article={article} dynamicLogos={dynamicLogos} />
           ))}
 
           {hasMore && (

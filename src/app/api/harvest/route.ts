@@ -4,6 +4,7 @@ import { harvestXTimeline } from "@/lib/x-harvester";
 import { harvestCustomSearches } from "@/lib/custom-search-harvester";
 import { analyzeUnprocessed } from "@/lib/analyzer";
 import { getOrCreateSummary, getCurrentPeriodStart } from "@/lib/summary";
+import { discoverMissingLogos } from "@/lib/logo-finder";
 import { prisma } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
@@ -53,11 +54,24 @@ export async function POST(request: NextRequest) {
     summaryGenerated = true;
   }
 
+  // Discover logos for new brands (max 3 per harvest to limit API calls)
+  let logosDiscovered = 0;
+  try {
+    const logoResult = await discoverMissingLogos(3);
+    logosDiscovered = logoResult.discovered;
+    if (logosDiscovered > 0) {
+      console.log(`[Harvest] Discovered ${logosDiscovered} new logos: ${logoResult.brands.join(", ")}`);
+    }
+  } catch (error) {
+    console.error("[Harvest] Logo discovery error:", error instanceof Error ? error.message : error);
+  }
+
   return NextResponse.json({
     results,
     totalAdded,
     analyzed,
     summaryGenerated,
+    logosDiscovered,
     timestamp: new Date().toISOString(),
   });
 }
