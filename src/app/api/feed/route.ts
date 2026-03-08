@@ -10,8 +10,10 @@ export async function GET(request: NextRequest) {
   const page = parseInt(request.nextUrl.searchParams.get("page") || "1");
 
   const isAuthenticated = await validateApiKey(apiKey);
-  const limit = isAuthenticated ? 50 : 10;
-  const skip = isAuthenticated ? (page - 1) * limit : 0;
+  const skipParam = parseInt(request.nextUrl.searchParams.get("skip") || "0");
+  const limitParam = parseInt(request.nextUrl.searchParams.get("limit") || "0");
+  const limit = isAuthenticated ? (limitParam || 50) : Math.min(limitParam || 20, 20);
+  const skip = isAuthenticated ? (page > 1 ? (page - 1) * limit : skipParam) : skipParam;
 
   const where: Record<string, unknown> = {};
 
@@ -61,7 +63,7 @@ export async function GET(request: NextRequest) {
   };
 
   if (!isAuthenticated) {
-    response.notice = "This is a free sample feed limited to 10 articles. Pass an x-api-key header for full access.";
+    response.notice = "Free sample feed limited to 20 articles per page. Pass an x-api-key header for full access.";
   }
 
   return NextResponse.json(response, {

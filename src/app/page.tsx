@@ -9,14 +9,14 @@ import { NewsSummary } from "./components/NewsSummary";
 
 async function getStats() {
   try {
-    const [totalArticles, analyzedArticles, latestArticle] = await Promise.all([
-      prisma.article.count(),
-      prisma.article.count({ where: { analyzed: true } }),
+    const [totalArticles, totalTweets, latestArticle] = await Promise.all([
+      prisma.article.count({ where: { sourceSlug: { not: "x" } } }),
+      prisma.article.count({ where: { sourceSlug: "x" } }),
       prisma.article.findFirst({ orderBy: { publishedAt: "desc" }, select: { publishedAt: true } }),
     ]);
-    return { totalArticles, analyzedArticles, lastUpdated: latestArticle?.publishedAt ?? null };
+    return { totalArticles, totalTweets, lastUpdated: latestArticle?.publishedAt ?? null };
   } catch {
-    return { totalArticles: 0, analyzedArticles: 0, lastUpdated: null };
+    return { totalArticles: 0, totalTweets: 0, lastUpdated: null };
   }
 }
 
@@ -25,7 +25,7 @@ async function getSampleArticles() {
     return await prisma.article.findMany({
       where: { analyzed: true },
       orderBy: { publishedAt: "desc" },
-      take: 10,
+      take: 20,
       select: {
         id: true,
         title: true,
@@ -115,35 +115,24 @@ export default async function HomePage() {
       <section className="max-w-5xl mx-auto px-6 pb-12">
         <Stats
           totalArticles={stats.totalArticles}
-          analyzedArticles={stats.analyzedArticles}
+          totalTweets={stats.totalTweets}
           sourceCount={SOURCES.length}
           lastUpdated={stats.lastUpdated}
         />
       </section>
 
-      {/* Sources */}
+      {/* Feed */}
       <section className="max-w-5xl mx-auto px-6 pb-16">
-        <div className="animate-fade-in-delay">
-          <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
-            <span className="w-1 h-5 bg-primary rounded-full" />
-            Sources
-          </h2>
-          <SourceGrid sources={SOURCES} />
-        </div>
+        <SampleFeed articles={sampleArticles} />
       </section>
 
-      {/* Sample Feed */}
+      {/* Sources */}
       <section className="max-w-5xl mx-auto px-6 pb-16">
-        <div className="animate-fade-in-delay-2">
-          <h2 className="text-xl font-semibold mb-2 flex items-center gap-2">
-            <span className="w-1 h-5 bg-primary rounded-full" />
-            Sample Feed
-          </h2>
-          <p className="text-sm text-text-muted mb-6">
-            Latest 10 articles from the free unauthenticated JSON feed.
-          </p>
-          <SampleFeed articles={sampleArticles} />
-        </div>
+        <h2 className="text-sm font-semibold mb-3 flex items-center gap-2 text-text-dim uppercase tracking-wider">
+          <span className="w-1 h-4 bg-primary rounded-full" />
+          Sources
+        </h2>
+        <SourceGrid sources={SOURCES} />
       </section>
 
       {/* API Docs */}

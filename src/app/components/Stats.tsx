@@ -1,15 +1,15 @@
 interface StatsProps {
   totalArticles: number;
-  analyzedArticles: number;
+  totalTweets: number;
   sourceCount: number;
   lastUpdated: Date | null;
 }
 
-export function Stats({ totalArticles, analyzedArticles, sourceCount, lastUpdated }: StatsProps) {
+export function Stats({ totalArticles, totalTweets, sourceCount, lastUpdated }: StatsProps) {
   const items = [
     { label: "Sources", value: sourceCount.toString() },
     { label: "Articles", value: totalArticles.toLocaleString() },
-    { label: "Analyzed", value: analyzedArticles.toLocaleString() },
+    { label: "Tweets", value: totalTweets.toLocaleString() },
     {
       label: "Last Updated",
       value: lastUpdated

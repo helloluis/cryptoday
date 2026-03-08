@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 
 interface Article {
   id: string;
@@ -14,6 +14,8 @@ interface Article {
   sentimentScore: number | null;
   sentimentLabel: string | null;
 }
+
+const PAGE_SIZE = 20;
 
 function SentimentBadge({ score, label }: { score: number | null; label: string | null }) {
   if (score === null) return null;
@@ -55,8 +57,27 @@ function timeAgo(dateStr: string | Date): string {
   return `${Math.floor(seconds / 86400)}d ago`;
 }
 
-export function SampleFeed({ articles }: { articles: Article[] }) {
+export function SampleFeed({ articles: initialArticles }: { articles: Article[] }) {
   const [showJson, setShowJson] = useState(false);
+  const [articles, setArticles] = useState<Article[]>(initialArticles);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(initialArticles.length >= PAGE_SIZE);
+
+  const loadMore = useCallback(async () => {
+    setLoading(true);
+    try {
+      const skip = articles.length;
+      const res = await fetch(`/api/feed?skip=${skip}&limit=${PAGE_SIZE}`);
+      const data = await res.json();
+      const newArticles: Article[] = data.articles || [];
+      setArticles((prev) => [...prev, ...newArticles]);
+      if (newArticles.length < PAGE_SIZE) setHasMore(false);
+    } catch {
+      setHasMore(false);
+    } finally {
+      setLoading(false);
+    }
+  }, [articles.length]);
 
   if (articles.length === 0) {
     return (
@@ -69,23 +90,23 @@ export function SampleFeed({ articles }: { articles: Article[] }) {
 
   return (
     <div>
-      <div className="flex gap-2 mb-4">
+      <div className="flex justify-end gap-1 mb-4">
         <button
           onClick={() => setShowJson(false)}
-          className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+          className={`px-2 py-1 rounded text-[10px] font-medium transition-colors ${
             !showJson
               ? "bg-primary text-white"
-              : "bg-surface-card border border-border text-text-muted hover:text-text"
+              : "bg-surface-card border border-border text-text-dim hover:text-text"
           }`}
         >
           Cards
         </button>
         <button
           onClick={() => setShowJson(true)}
-          className={`px-3 py-1.5 rounded text-xs font-mono transition-colors ${
+          className={`px-2 py-1 rounded text-[10px] font-mono transition-colors ${
             showJson
               ? "bg-primary text-white"
-              : "bg-surface-card border border-border text-text-muted hover:text-text"
+              : "bg-surface-card border border-border text-text-dim hover:text-text"
           }`}
         >
           JSON
@@ -99,7 +120,7 @@ export function SampleFeed({ articles }: { articles: Article[] }) {
             <span className="text-xs text-text-dim">application/json</span>
           </div>
           <pre className="p-4 text-xs font-mono text-text-muted overflow-x-auto leading-relaxed max-h-96 overflow-y-auto">
-            {JSON.stringify({ articles, meta: { total: articles.length, page: 1, limit: 10, authenticated: false } }, null, 2)}
+            {JSON.stringify({ articles, meta: { total: articles.length, page: 1, limit: PAGE_SIZE, authenticated: false } }, null, 2)}
           </pre>
         </div>
       ) : (
@@ -134,6 +155,16 @@ export function SampleFeed({ articles }: { articles: Article[] }) {
               </div>
             </a>
           ))}
+
+          {hasMore && (
+            <button
+              onClick={loadMore}
+              disabled={loading}
+              className="w-full py-3 rounded-lg border border-border bg-surface-card text-sm text-text-muted hover:border-border-light hover:bg-surface-hover transition-all duration-200 disabled:opacity-50"
+            >
+              {loading ? "Loading..." : "More"}
+            </button>
+          )}
         </div>
       )}
     </div>
