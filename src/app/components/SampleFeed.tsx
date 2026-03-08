@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 
 interface Article {
   id: string;
@@ -16,6 +16,7 @@ interface Article {
 }
 
 const PAGE_SIZE = 20;
+const REFRESH_INTERVAL = 15 * 60 * 1000; // 15 minutes
 
 function SentimentBadge({ score, label }: { score: number | null; label: string | null }) {
   if (score === null) return null;
@@ -62,6 +63,26 @@ export function SampleFeed({ articles: initialArticles }: { articles: Article[] 
   const [articles, setArticles] = useState<Article[]>(initialArticles);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(initialArticles.length >= PAGE_SIZE);
+  const knownIds = useRef(new Set(initialArticles.map((a) => a.id)));
+
+  // Auto-refresh every 15 minutes — prepend new articles
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/feed?limit=${PAGE_SIZE}`);
+        const data = await res.json();
+        const fresh: Article[] = data.articles || [];
+        const newOnes = fresh.filter((a) => !knownIds.current.has(a.id));
+        if (newOnes.length > 0) {
+          for (const a of newOnes) knownIds.current.add(a.id);
+          setArticles((prev) => [...newOnes, ...prev]);
+        }
+      } catch {
+        // silent
+      }
+    }, REFRESH_INTERVAL);
+    return () => clearInterval(interval);
+  }, []);
 
   const loadMore = useCallback(async () => {
     setLoading(true);
@@ -69,7 +90,10 @@ export function SampleFeed({ articles: initialArticles }: { articles: Article[] 
       const skip = articles.length;
       const res = await fetch(`/api/feed?skip=${skip}&limit=${PAGE_SIZE}`);
       const data = await res.json();
-      const newArticles: Article[] = data.articles || [];
+      const newArticles: Article[] = (data.articles || []).filter(
+        (a: Article) => !knownIds.current.has(a.id)
+      );
+      for (const a of newArticles) knownIds.current.add(a.id);
       setArticles((prev) => [...prev, ...newArticles]);
       if (newArticles.length < PAGE_SIZE) setHasMore(false);
     } catch {

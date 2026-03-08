@@ -79,9 +79,8 @@ export default async function HomePage() {
               <span className="text-primary">CryptoDay</span> News
             </h1>
             <p className="text-xs text-text-dim max-w-2xl leading-relaxed">
-              AI-powered crypto news aggregation and sentiment analysis.{" "}
-              {SOURCES.length} sources harvested hourly, analyzed by{" "}
-              <span className="text-text-muted">Qwen 3.5 Plus</span>, and designed by{" "}
+              News aggregation and sentiment analysis, harvested and analyzed hourly by{" "}
+              <span className="text-text-muted">Qwen 3.5 Plus</span>. Designed by{" "}
               <a
                 href="https://x.com/helloluis"
                 className="text-primary hover:text-primary-light transition-colors"
