@@ -124,7 +124,14 @@ async function downloadSvg(url: string, brand: string): Promise<string | null> {
       return filename;
     }
 
-    fs.writeFileSync(filepath, text, "utf-8");
+    // Add fill="white" to SVGs that have no fill attribute (SimpleIcons style)
+    // so they render visibly on dark backgrounds
+    let svgContent = text;
+    if (!svgContent.includes("fill=") && !svgContent.includes("fill:")) {
+      svgContent = svgContent.replace("<svg ", '<svg fill="white" ');
+    }
+
+    fs.writeFileSync(filepath, svgContent, "utf-8");
     console.log(`[LogoFinder] Saved logo: ${filename}`);
     return filename;
   } catch (error) {

@@ -30,11 +30,15 @@ export async function GET(request: NextRequest) {
   if (category) where.category = category.toUpperCase();
   if (source) where.sourceSlug = source;
 
-  const [articles, total] = await Promise.all([
+  // Fetch extra to account for dedup — duplicates arise when Google News
+  // aggregates an article we also have from the original source
+  const overfetch = Math.ceil(limit * 1.5);
+
+  const [rawArticles, total] = await Promise.all([
     prisma.article.findMany({
       where,
       orderBy: { publishedAt: "desc" },
-      take: limit,
+      take: overfetch,
       skip,
       select: {
         id: true,
@@ -51,6 +55,24 @@ export async function GET(request: NextRequest) {
     }),
     prisma.article.count({ where }),
   ]);
+
+  // Dedup by exact title: prefer original source over Google News aggregator
+  const seen = new Map<string, typeof rawArticles[0]>();
+  for (const article of rawArticles) {
+    const key = article.title.toLowerCase().trim();
+    const existing = seen.get(key);
+    if (!existing) {
+      seen.set(key, article);
+    } else {
+      // Keep the non-Google-News version (original source)
+      const existingIsAggregator = existing.source.startsWith("Google News");
+      const currentIsAggregator = article.source.startsWith("Google News");
+      if (existingIsAggregator && !currentIsAggregator) {
+        seen.set(key, article);
+      }
+    }
+  }
+  const articles = [...seen.values()].slice(0, limit);
 
   const response: Record<string, unknown> = {
     articles,

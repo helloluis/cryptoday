@@ -23,10 +23,11 @@ async function getStats() {
 
 async function getSampleArticles() {
   try {
-    return await prisma.article.findMany({
+    // Overfetch to account for dedup
+    const raw = await prisma.article.findMany({
       where: { analyzed: true },
       orderBy: { publishedAt: "desc" },
-      take: 20,
+      take: 30,
       select: {
         id: true,
         title: true,
@@ -40,6 +41,18 @@ async function getSampleArticles() {
         sentimentLabel: true,
       },
     });
+    // Dedup by exact title — prefer original source over Google News
+    const seen = new Map<string, typeof raw[0]>();
+    for (const article of raw) {
+      const key = article.title.toLowerCase().trim();
+      const existing = seen.get(key);
+      if (!existing) {
+        seen.set(key, article);
+      } else if (existing.source.startsWith("Google News") && !article.source.startsWith("Google News")) {
+        seen.set(key, article);
+      }
+    }
+    return [...seen.values()].slice(0, 20);
   } catch {
     return [];
   }
