@@ -12,7 +12,18 @@ const CHANNELS: { name: string; url: string }[] = [
   { name: "base", url: "https://warpcast.com/~/channel/base" },
 ];
 
-const MIN_CAST_LENGTH = 60;
+const MIN_CAST_LENGTH = 100;
+
+// Spam / low-quality patterns to reject
+const SPAM_PATTERNS = [
+  /\b(airdrop|free mint|claim now|join now|whitelist|presale)\b/i,
+  /\b(1000x|100x|moonshot|guaranteed|send \d+ get \d+)\b/i,
+  /\b(follow me|like and rt|giveaway|dm me)\b/i,
+  /[\u{1F680}\u{1F4B0}\u{1F525}\u{1F4A5}]{3,}/u, // 3+ rocket/money/fire emojis in a row
+];
+
+// Must reference something substantive — news, analysis, data
+const QUALITY_SIGNALS = /\b(announced|launched|report|according|raised|partnership|update|release|proposal|vote|hack|exploit|SEC|ETF|approval|ruling|billion|million|protocol|upgrade|fork|merge|audit|vulnerability|regulation|compliance|IPO|listing|acquisition|fund)\b/i;
 
 interface CastMessage {
   data: {
@@ -22,6 +33,7 @@ interface CastMessage {
     castAddBody?: {
       text: string;
       parentUrl?: string;
+      parentCastId?: { fid: number; hash: string };
       embeds?: Array<{ url?: string }>;
     };
   };
@@ -55,12 +67,25 @@ export async function harvestFarcaster(): Promise<number> {
       const data: CastsByParentResponse = await res.json();
       const casts = data.messages || [];
 
+      let skippedShort = 0, skippedReply = 0, skippedSpam = 0, skippedNoSignal = 0, skippedDupe = 0;
+
       for (const cast of casts) {
         const body = cast.data?.castAddBody;
         if (!body?.text) continue;
 
-        // Skip short casts
-        if (body.text.length < MIN_CAST_LENGTH) continue;
+        // Skip short casts — need enough substance to be newsworthy
+        if (body.text.length < MIN_CAST_LENGTH) { skippedShort++; continue; }
+
+        // Skip replies — only want top-level channel posts
+        if (body.parentCastId) { skippedReply++; continue; }
+
+        // Skip spam/shilling
+        if (SPAM_PATTERNS.some((p) => p.test(body.text))) { skippedSpam++; continue; }
+
+        // Must have a link embed OR contain quality signal words
+        const hasEmbed = body.embeds?.some((e) => e.url);
+        const hasQualitySignal = QUALITY_SIGNALS.test(body.text);
+        if (!hasEmbed && !hasQualitySignal) { skippedNoSignal++; continue; }
 
         // Farcaster timestamps are seconds since Jan 1, 2021 00:00:00 UTC (Farcaster epoch)
         const FARCASTER_EPOCH = 1609459200; // 2021-01-01T00:00:00Z
@@ -72,7 +97,7 @@ export async function harvestFarcaster(): Promise<number> {
 
         // Deduplicate by URL
         const exists = await prisma.article.findUnique({ where: { url: castUrl } });
-        if (exists) continue;
+        if (exists) { skippedDupe++; continue; }
 
         // Use first embed URL if available (often links to articles)
         const embedUrl = body.embeds?.find((e) => e.url)?.url;
@@ -90,6 +115,8 @@ export async function harvestFarcaster(): Promise<number> {
 
         totalAdded++;
       }
+
+      console.log(`[Farcaster] /${channel.name}: Short=${skippedShort} Reply=${skippedReply} Spam=${skippedSpam} NoSignal=${skippedNoSignal} Dupe=${skippedDupe} Added=${totalAdded}`);
 
       // Small delay between channels
       await new Promise((r) => setTimeout(r, 500));
