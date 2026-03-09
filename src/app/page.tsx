@@ -10,14 +10,14 @@ import { NewsSummary } from "./components/NewsSummary";
 
 async function getStats() {
   try {
-    const [totalArticles, totalTweets, latestArticle] = await Promise.all([
-      prisma.article.count({ where: { sourceSlug: { not: "x" } } }),
-      prisma.article.count({ where: { sourceSlug: "x" } }),
+    const [totalArticles, totalSocialPosts, latestArticle] = await Promise.all([
+      prisma.article.count({ where: { sourceSlug: { notIn: ["x", "reddit", "farcaster"] } } }),
+      prisma.article.count({ where: { sourceSlug: { in: ["x", "reddit", "farcaster"] } } }),
       prisma.article.findFirst({ orderBy: { publishedAt: "desc" }, select: { publishedAt: true } }),
     ]);
-    return { totalArticles, totalTweets, lastUpdated: latestArticle?.publishedAt ?? null };
+    return { totalArticles, totalSocialPosts, lastUpdated: latestArticle?.publishedAt ?? null };
   } catch {
-    return { totalArticles: 0, totalTweets: 0, lastUpdated: null };
+    return { totalArticles: 0, totalSocialPosts: 0, lastUpdated: null };
   }
 }
 
@@ -137,7 +137,7 @@ export default async function HomePage() {
       <section className="max-w-5xl mx-auto px-6 pb-12">
         <Stats
           totalArticles={stats.totalArticles}
-          totalTweets={stats.totalTweets}
+          totalSocialPosts={stats.totalSocialPosts}
           sourceCount={SOURCES.length}
           lastUpdated={stats.lastUpdated}
         />
