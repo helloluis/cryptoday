@@ -21,10 +21,13 @@ model Article {
   sentimentScore Float?
   sentimentLabel String?
   analyzed       Boolean  @default(false)
+  hidden         Boolean  @default(false)
+  hiddenReason   String?
   apiKeyId       String?
   searchQuery    String?
 
   @@index([publishedAt])
+  @@index([hidden])
   @@index([source])
   @@index([category])
   @@index([analyzed])

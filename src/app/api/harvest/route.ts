@@ -4,10 +4,29 @@ import { harvestStaggered, harvestAll } from "@/lib/harvester";
 import { harvestReddit } from "@/lib/reddit-harvester";
 import { harvestFarcaster } from "@/lib/farcaster-harvester";
 import { harvestCustomSearches } from "@/lib/custom-search-harvester";
-import { analyzeUnprocessed } from "@/lib/analyzer";
+import { analyzeUnprocessed, backfillCuration } from "@/lib/analyzer";
 import { getOrCreateSummary, getCurrentPeriodStart } from "@/lib/summary";
 import { discoverMissingLogos } from "@/lib/logo-finder";
 import { prisma } from "@/lib/db";
+
+export async function GET(request: NextRequest) {
+  const authHeader = request.headers.get("authorization");
+  const cronSecret = process.env.CRON_SECRET;
+
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const action = request.nextUrl.searchParams.get("action");
+
+  if (action === "backfill-curation") {
+    const limit = parseInt(request.nextUrl.searchParams.get("limit") || "50");
+    const result = await backfillCuration(Math.min(limit, 200));
+    return NextResponse.json(result);
+  }
+
+  return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+}
 
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization");

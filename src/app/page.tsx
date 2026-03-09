@@ -25,7 +25,7 @@ async function getSampleArticles() {
   try {
     // Overfetch to account for dedup
     const raw = await prisma.article.findMany({
-      where: { analyzed: true },
+      where: { analyzed: true, hidden: false },
       orderBy: { publishedAt: "desc" },
       take: 30,
       select: {

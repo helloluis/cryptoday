@@ -51,6 +51,7 @@ export async function getOrCreateSummary(): Promise<{
   let articles = await prisma.article.findMany({
     where: {
       analyzed: true,
+      hidden: false,
       publishedAt: { gte: currentStart, lt: currentEnd },
     },
     orderBy: { publishedAt: "desc" },
@@ -64,6 +65,7 @@ export async function getOrCreateSummary(): Promise<{
     articles = await prisma.article.findMany({
       where: {
         analyzed: true,
+        hidden: false,
         publishedAt: { gte: lastStart, lt: lastEnd },
       },
       orderBy: { publishedAt: "desc" },
@@ -76,7 +78,7 @@ export async function getOrCreateSummary(): Promise<{
   // If still not enough, grab the most recent articles regardless of period
   if (articles.length < 3) {
     articles = await prisma.article.findMany({
-      where: { analyzed: true },
+      where: { analyzed: true, hidden: false },
       orderBy: { publishedAt: "desc" },
       take: 30,
       select: { title: true, summary: true, source: true, category: true, sentimentScore: true },

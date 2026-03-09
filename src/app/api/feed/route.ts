@@ -22,8 +22,9 @@ export async function GET(request: NextRequest) {
     const apiKeyRecord = await getApiKey(apiKey);
     where.apiKeyId = apiKeyRecord!.id;
   } else {
-    // Default: only show analyzed public articles (no custom search articles)
+    // Default: only show analyzed, non-hidden public articles (no custom search articles)
     where.analyzed = true;
+    where.hidden = false;
     where.apiKeyId = null;
   }
 
