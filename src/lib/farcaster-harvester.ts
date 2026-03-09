@@ -1,18 +1,14 @@
 import { prisma } from "./db";
 
-const HUB_URL = "https://hub.pinata.cloud";
+// Neynar free API — provides cast reactions, follower counts, embeds
+const NEYNAR_API = "https://api.neynar.com/v2/farcaster";
+const NEYNAR_KEY = process.env.NEYNAR_API_KEY || "NEYNAR_API_DOCS"; // free demo key
 
-// Well-known Farcaster channel parent URLs
-const CHANNELS: { name: string; url: string }[] = [
-  { name: "crypto", url: "https://warpcast.com/~/channel/crypto" },
-  { name: "bitcoin", url: "https://warpcast.com/~/channel/bitcoin" },
-  { name: "ethereum", url: "https://warpcast.com/~/channel/ethereum" },
-  { name: "defi", url: "https://warpcast.com/~/channel/defi" },
-  { name: "solana", url: "https://warpcast.com/~/channel/solana" },
-  { name: "base", url: "https://warpcast.com/~/channel/base" },
-];
+const CHANNELS = ["crypto", "bitcoin", "ethereum", "defi", "solana", "base"];
 
-const MIN_CAST_LENGTH = 100;
+const MIN_CAST_LENGTH = 80;
+const MIN_LIKES = 2; // minimum likes to be worth ingesting
+const MIN_FOLLOWER_COUNT = 100;
 
 // Spam / low-quality patterns to reject
 const SPAM_PATTERNS = [
@@ -22,27 +18,28 @@ const SPAM_PATTERNS = [
   /[\u{1F680}\u{1F4B0}\u{1F525}\u{1F4A5}]{3,}/u, // 3+ rocket/money/fire emojis in a row
 ];
 
-// Must reference something substantive — news, analysis, data
-const QUALITY_SIGNALS = /\b(announced|launched|report|according|raised|partnership|update|release|proposal|vote|hack|exploit|SEC|ETF|approval|ruling|billion|million|protocol|upgrade|fork|merge|audit|vulnerability|regulation|compliance|IPO|listing|acquisition|fund)\b/i;
-
-interface CastMessage {
-  data: {
-    type: string;
-    fid: number;
-    timestamp: number;
-    castAddBody?: {
-      text: string;
-      parentUrl?: string;
-      parentCastId?: { fid: number; hash: string };
-      embeds?: Array<{ url?: string }>;
-    };
-  };
+interface NeynarCast {
   hash: string;
+  author: {
+    fid: number;
+    username: string;
+    display_name: string;
+    follower_count: number;
+  };
+  text: string;
+  timestamp: string;
+  embeds: Array<{ url?: string }>;
+  reactions: {
+    likes_count: number;
+    recasts_count: number;
+  };
+  replies: { count: number };
+  parent_hash: string | null;
 }
 
-interface CastsByParentResponse {
-  messages: CastMessage[];
-  nextPageToken?: string;
+interface NeynarFeedResponse {
+  casts: NeynarCast[];
+  next?: { cursor: string };
 }
 
 export async function harvestFarcaster(): Promise<number> {
@@ -50,78 +47,80 @@ export async function harvestFarcaster(): Promise<number> {
 
   for (const channel of CHANNELS) {
     try {
-      const encodedUrl = encodeURIComponent(channel.url);
       const res = await fetch(
-        `${HUB_URL}/v1/castsByParent?url=${encodedUrl}&pageSize=20&reverse=true`,
+        `${NEYNAR_API}/feed/channels?channel_ids=${channel}&limit=25&should_moderate=true`,
         {
-          headers: { "User-Agent": "CryptoDay-News/1.0" },
+          headers: {
+            accept: "application/json",
+            "x-api-key": NEYNAR_KEY,
+          },
           signal: AbortSignal.timeout(10000),
         }
       );
 
       if (!res.ok) {
-        console.error(`[Farcaster] HTTP ${res.status} for channel ${channel.name}`);
+        console.error(`[Farcaster] HTTP ${res.status} for /${channel}`);
         continue;
       }
 
-      const data: CastsByParentResponse = await res.json();
-      const casts = data.messages || [];
+      const data: NeynarFeedResponse = await res.json();
+      const casts = data.casts || [];
 
-      let skippedShort = 0, skippedReply = 0, skippedSpam = 0, skippedNoSignal = 0, skippedDupe = 0;
+      let skippedShort = 0, skippedReply = 0, skippedSpam = 0,
+          skippedLikes = 0, skippedFollowers = 0, skippedDupe = 0;
 
       for (const cast of casts) {
-        const body = cast.data?.castAddBody;
-        if (!body?.text) continue;
+        if (!cast.text) continue;
 
-        // Skip short casts — need enough substance to be newsworthy
-        if (body.text.length < MIN_CAST_LENGTH) { skippedShort++; continue; }
+        // Skip short casts
+        if (cast.text.length < MIN_CAST_LENGTH) { skippedShort++; continue; }
 
-        // Skip replies — only want top-level channel posts
-        if (body.parentCastId) { skippedReply++; continue; }
+        // Skip replies — only top-level channel posts
+        if (cast.parent_hash) { skippedReply++; continue; }
 
         // Skip spam/shilling
-        if (SPAM_PATTERNS.some((p) => p.test(body.text))) { skippedSpam++; continue; }
+        if (SPAM_PATTERNS.some((p) => p.test(cast.text))) { skippedSpam++; continue; }
 
-        // Must have a link embed OR contain quality signal words
-        const hasEmbed = body.embeds?.some((e) => e.url);
-        const hasQualitySignal = QUALITY_SIGNALS.test(body.text);
-        if (!hasEmbed && !hasQualitySignal) { skippedNoSignal++; continue; }
+        // Quality gate: minimum engagement
+        if (cast.reactions.likes_count < MIN_LIKES) { skippedLikes++; continue; }
 
-        // Farcaster timestamps are seconds since Jan 1, 2021 00:00:00 UTC (Farcaster epoch)
-        const FARCASTER_EPOCH = 1609459200; // 2021-01-01T00:00:00Z
-        const publishedAt = new Date((cast.data.timestamp + FARCASTER_EPOCH) * 1000);
+        // Skip low-follower accounts
+        if (cast.author.follower_count < MIN_FOLLOWER_COUNT) { skippedFollowers++; continue; }
 
-        // Build Warpcast URL from hash and FID
-        const hashHex = cast.hash.startsWith("0x") ? cast.hash : `0x${cast.hash}`;
-        const castUrl = `https://warpcast.com/~/conversations/${hashHex}`;
+        const castUrl = `https://warpcast.com/${cast.author.username}/${cast.hash.slice(0, 10)}`;
 
         // Deduplicate by URL
         const exists = await prisma.article.findUnique({ where: { url: castUrl } });
         if (exists) { skippedDupe++; continue; }
 
+        const publishedAt = new Date(cast.timestamp);
+
         // Use first embed URL if available (often links to articles)
-        const embedUrl = body.embeds?.find((e) => e.url)?.url;
+        const embedUrl = cast.embeds?.find((e) => e.url)?.url;
 
         await prisma.article.create({
           data: {
-            title: body.text.slice(0, 300).replace(/\n/g, " "),
+            title: cast.text.slice(0, 300).replace(/\n/g, " "),
             url: embedUrl || castUrl,
-            source: `Farcaster (/${channel.name})`,
+            source: `Farcaster (/${channel})`,
             sourceSlug: "farcaster",
             publishedAt,
-            content: body.text,
+            content: cast.text,
           },
         });
 
         totalAdded++;
       }
 
-      console.log(`[Farcaster] /${channel.name}: Short=${skippedShort} Reply=${skippedReply} Spam=${skippedSpam} NoSignal=${skippedNoSignal} Dupe=${skippedDupe} Added=${totalAdded}`);
+      console.log(
+        `[Farcaster] /${channel}: Short=${skippedShort} Reply=${skippedReply} Spam=${skippedSpam} ` +
+        `<${MIN_LIKES}likes=${skippedLikes} <${MIN_FOLLOWER_COUNT}foll=${skippedFollowers} Dupe=${skippedDupe} Added=${totalAdded}`
+      );
 
       // Small delay between channels
       await new Promise((r) => setTimeout(r, 500));
     } catch (error) {
-      console.error(`[Farcaster] Error harvesting /${channel.name}:`, error instanceof Error ? error.message : error);
+      console.error(`[Farcaster] Error harvesting /${channel}:`, error instanceof Error ? error.message : error);
     }
   }
 
