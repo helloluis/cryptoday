@@ -47,11 +47,19 @@ Fields:
 
 Relevance rules (set relevant=false if ANY apply):
 1. NOT ENGLISH: The title or body is primarily in a non-English language (Danish, German, French, etc.)
-2. NOT CRYPTO: The article has no meaningful connection to cryptocurrency, blockchain, DeFi, or digital assets. Corporate share buybacks, traditional stock transactions, and conventional finance filings that merely happen to appear on a wire service alongside crypto news should be marked irrelevant.
+2. IRRELEVANT: The article has zero connection to crypto AND zero macro significance. Corporate share buybacks, traditional stock transactions, small-cap equity filings, and routine corporate press releases should be hidden.
 3. TOO REGIONAL: The news is specific to a small regional company or local market with no global significance. Exception: Philippine companies/markets ARE relevant since our audience is Philippines-based. Exception: news about globally recognized companies (Fortune 500, major tech companies, major crypto exchanges) is always relevant regardless of region.
-4. PRESS RELEASE SPAM: Generic corporate press releases, share transaction notices, or regulatory filings that have no crypto relevance.
+4. PRESS RELEASE SPAM: Generic corporate press releases, share transaction notices, or regulatory filings with no crypto or macro relevance.
 
-Be generous — when in doubt, mark as relevant. A niche-but-genuine crypto article is better than a false rejection. Only hide articles that clearly fail the above rules.
+IMPORTANT — these topics are ALWAYS relevant even without explicit crypto mentions:
+- AI/artificial intelligence (major AI companies, regulation, breakthroughs) — AI and crypto markets are deeply intertwined
+- War, geopolitical conflict, sanctions, military escalation — these are macro catalysts that directly move crypto markets
+- Major central bank decisions, interest rates, inflation data, monetary policy
+- US regulation, SEC/CFTC actions, global financial regulation
+- Fortune 500 earnings or moves that signal broader market direction
+- Energy markets and oil price shocks (affect mining economics and risk sentiment)
+
+Be generous — when in doubt, mark as relevant. Our readers are crypto-focused but macro-aware. A niche-but-genuine article is better than a false rejection.
 
 Respond with ONLY the JSON object.`,
       },
