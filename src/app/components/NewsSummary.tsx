@@ -18,15 +18,16 @@ function formatPeriod(date: Date | null): string {
     new Intl.DateTimeFormat("en-US", {
       hour: "2-digit",
       minute: "2-digit",
-      timeZone: "UTC",
       hour12: false,
     }).format(dt);
   const dateFmt = new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
-    timeZone: "UTC",
   }).format(d);
-  return `${dateFmt}, ${fmt(d)}\u2013${fmt(end)} UTC`;
+  const tz = new Intl.DateTimeFormat("en-US", { timeZoneName: "short" })
+    .formatToParts(d)
+    .find((p) => p.type === "timeZoneName")?.value || "";
+  return `${dateFmt}, ${fmt(d)}\u2013${fmt(end)} ${tz}`;
 }
 
 const TAG_STYLES: Record<string, { bg: string; color: string }> = {
