@@ -70,6 +70,8 @@ Respond with ONLY the JSON object.`,
     ],
     temperature: 0.3,
     max_tokens: 400,
+    // @ts-expect-error — DashScope extension to disable Qwen thinking mode
+    enable_thinking: false,
   });
 
   const raw = response.choices[0]?.message?.content?.trim() || "";
