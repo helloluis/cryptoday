@@ -129,8 +129,6 @@ sentimentLabel: one of "very_bearish", "bearish", "neutral", "bullish", "very_bu
     ],
     temperature: 0.4,
     max_tokens: 500,
-    // @ts-expect-error — DashScope extension to disable Qwen thinking mode
-    enable_thinking: false,
   });
 
   const raw = response.choices[0]?.message?.content?.trim() || "";
