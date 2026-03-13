@@ -18,6 +18,10 @@ Deployment is **automatic** via GitHub Actions on push to main:
 git add -A && git commit -m "message" && git push origin main
 ```
 
+### SSH Access
+
+**Do NOT open parallel SSH connections to the VPS.** Multiple simultaneous SSH sessions tie up the VPS. Run all remote commands sequentially in a single session.
+
 ### Database Connection
 
 - **Local development**: SSH tunnel on port 5433 → `localhost:5433`
