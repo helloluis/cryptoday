@@ -12,32 +12,15 @@ const CRYPTO_TOKENS = [
   "NEAR", "PEPE", "SHIB", "TRX", "TON", "HBAR", "ICP", "INJ", "TIA", "JUP",
 ];
 
-interface AnalysisResult {
-  summary: string;
-  category: string;
-  sentimentScore: number;
-  sentimentLabel: string;
-  relevant: boolean;
-  hiddenReason: string | null;
-}
+const SYSTEM_PROMPT = `You are a crypto news analyst and curator for an English-language crypto news aggregator based in the Philippines.
 
-export async function analyzeArticle(
-  title: string,
-  content: string | null
-): Promise<AnalysisResult> {
-  const text = content ? `${title}\n\n${content.slice(0, 1500)}` : title;
+You will receive a numbered list of news articles. For EACH article, produce an analysis object. Respond with ONLY a valid JSON array (no markdown, no code fences) — one object per article, in the same order.
 
-  const response = await client.chat.completions.create({
-    model: "qwen3.5-plus",
-    messages: [
-      {
-        role: "system",
-        content: `You are a crypto news analyst and curator for an English-language crypto news aggregator based in the Philippines.
-
-Given a news article, respond with ONLY valid JSON (no markdown, no code fences):
-{"summary":"...","category":"...","sentimentScore":0.0,"sentimentLabel":"...","relevant":true,"hiddenReason":null}
+Each object must have these fields:
+{"id":<number>,"summary":"...","category":"...","sentimentScore":0.0,"sentimentLabel":"...","relevant":true,"hiddenReason":null}
 
 Fields:
+- id: the article number from the input (1, 2, 3, etc.)
 - summary: concise 1-2 sentence summary of the key takeaway
 - category: if primarily about a specific cryptocurrency, use its ticker (${CRYPTO_TOKENS.join(", ")}). General crypto → "ALL". DeFi → "DEFI". NFTs → "NFT". Regulation → "REG".
 - sentimentScore: float from -1.0 (very bearish) to 1.0 (very bullish), 0 = neutral
@@ -61,12 +44,38 @@ IMPORTANT — these topics are ALWAYS relevant even without explicit crypto ment
 
 Be generous — when in doubt, mark as relevant. Our readers are crypto-focused but macro-aware. A niche-but-genuine article is better than a false rejection.
 
-Respond with ONLY the JSON object.`,
-      },
-      {
-        role: "user",
-        content: text,
-      },
+Respond with ONLY the JSON array.`;
+
+interface AnalysisResult {
+  summary: string;
+  category: string;
+  sentimentScore: number;
+  sentimentLabel: string;
+  relevant: boolean;
+  hiddenReason: string | null;
+}
+
+const DEFAULT_RESULT: AnalysisResult = {
+  summary: "Analysis unavailable.",
+  category: "ALL",
+  sentimentScore: 0,
+  sentimentLabel: "neutral",
+  relevant: true,
+  hiddenReason: null,
+};
+
+/** Analyze a single article (used as fallback and by backfillCuration) */
+export async function analyzeArticle(
+  title: string,
+  content: string | null
+): Promise<AnalysisResult> {
+  const text = content ? `${title}\n\n${content.slice(0, 1500)}` : title;
+
+  const response = await client.chat.completions.create({
+    model: "qwen3.5-plus",
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: `1. ${text}` },
     ],
     temperature: 0.3,
     max_tokens: 400,
@@ -79,41 +88,96 @@ Respond with ONLY the JSON object.`,
 
   try {
     const parsed = JSON.parse(cleaned);
+    const item = Array.isArray(parsed) ? parsed[0] : parsed;
     return {
-      summary: parsed.summary || "No summary available.",
-      category: parsed.category || "ALL",
-      sentimentScore: typeof parsed.sentimentScore === "number" ? parsed.sentimentScore : 0,
-      sentimentLabel: parsed.sentimentLabel || "neutral",
-      relevant: parsed.relevant !== false, // default to relevant if missing
-      hiddenReason: parsed.hiddenReason || null,
+      summary: item.summary || "No summary available.",
+      category: item.category || "ALL",
+      sentimentScore: typeof item.sentimentScore === "number" ? item.sentimentScore : 0,
+      sentimentLabel: item.sentimentLabel || "neutral",
+      relevant: item.relevant !== false,
+      hiddenReason: item.hiddenReason || null,
     };
   } catch {
     console.error("[Analyzer] Failed to parse response:", raw);
-    return {
-      summary: "Analysis unavailable.",
-      category: "ALL",
-      sentimentScore: 0,
-      sentimentLabel: "neutral",
-      relevant: true, // don't hide on parse failure
-      hiddenReason: null,
-    };
+    return { ...DEFAULT_RESULT };
   }
 }
 
-export async function analyzeUnprocessed(limit = 10): Promise<number> {
+/** Analyze multiple articles in a single API call */
+async function analyzeBatch(
+  articles: { id: string; title: string; content: string | null }[]
+): Promise<Map<string, AnalysisResult>> {
+  const results = new Map<string, AnalysisResult>();
+
+  const digest = articles
+    .map((a, i) => {
+      const text = a.content ? `${a.title}\n${a.content.slice(0, 800)}` : a.title;
+      return `${i + 1}. ${text}`;
+    })
+    .join("\n\n");
+
+  // Scale max_tokens with batch size (~120 tokens per article)
+  const maxTokens = Math.min(articles.length * 150, 4000);
+
+  const response = await client.chat.completions.create({
+    model: "qwen3.5-plus",
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: digest },
+    ],
+    temperature: 0.3,
+    max_tokens: maxTokens,
+    // @ts-expect-error — DashScope extension to disable Qwen thinking mode
+    enable_thinking: false,
+  });
+
+  const raw = response.choices[0]?.message?.content?.trim() || "";
+  const cleaned = raw.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "").trim();
+
+  try {
+    const parsed = JSON.parse(cleaned);
+    const items: Array<Record<string, unknown>> = Array.isArray(parsed) ? parsed : [parsed];
+
+    for (const item of items) {
+      const idx = typeof item.id === "number" ? item.id - 1 : items.indexOf(item);
+      const article = articles[idx];
+      if (!article) continue;
+
+      results.set(article.id, {
+        summary: (item.summary as string) || "No summary available.",
+        category: (item.category as string) || "ALL",
+        sentimentScore: typeof item.sentimentScore === "number" ? item.sentimentScore : 0,
+        sentimentLabel: (item.sentimentLabel as string) || "neutral",
+        relevant: item.relevant !== false,
+        hiddenReason: (item.hiddenReason as string) || null,
+      });
+    }
+  } catch {
+    console.error("[Analyzer] Failed to parse batch response:", raw);
+  }
+
+  return results;
+}
+
+export async function analyzeUnprocessed(limit = 15): Promise<number> {
   const articles = await prisma.article.findMany({
     where: { analyzed: false },
     orderBy: { publishedAt: "desc" },
     take: limit,
   });
 
+  if (articles.length === 0) return 0;
+
+  // Batch analyze in a single API call
+  const batchResults = await analyzeBatch(articles);
+
   let processed = 0;
   let hidden = 0;
 
   for (const article of articles) {
-    try {
-      const result = await analyzeArticle(article.title, article.content);
+    const result = batchResults.get(article.id) || { ...DEFAULT_RESULT };
 
+    try {
       await prisma.article.update({
         where: { id: article.id },
         data: {
@@ -133,9 +197,8 @@ export async function analyzeUnprocessed(limit = 10): Promise<number> {
       }
 
       processed++;
-      await new Promise((r) => setTimeout(r, 500));
     } catch (error) {
-      console.error(`[Analyzer] Error analyzing "${article.title}":`, error instanceof Error ? error.message : error);
+      console.error(`[Analyzer] Error saving "${article.title}":`, error instanceof Error ? error.message : error);
     }
   }
 
@@ -162,19 +225,22 @@ export async function backfillCuration(limit = 20): Promise<{ processed: number;
     select: { id: true, title: true, content: true },
   });
 
+  if (articles.length === 0) return { processed: 0, hidden: 0 };
+
+  const batchResults = await analyzeBatch(articles);
+
   let processed = 0;
   let hidden = 0;
 
   for (const article of articles) {
-    try {
-      const result = await analyzeArticle(article.title, article.content);
+    const result = batchResults.get(article.id) || { ...DEFAULT_RESULT, hiddenReason: "reviewed" };
 
+    try {
       await prisma.article.update({
         where: { id: article.id },
         data: {
           hidden: !result.relevant,
           hiddenReason: result.hiddenReason || "reviewed",
-          // Also update summary/sentiment if improved
           summary: result.summary,
           category: result.category,
           sentimentScore: result.sentimentScore,
@@ -188,7 +254,6 @@ export async function backfillCuration(limit = 20): Promise<{ processed: number;
       }
 
       processed++;
-      await new Promise((r) => setTimeout(r, 500));
     } catch (error) {
       console.error(`[Backfill] Error on "${article.title.slice(0, 60)}":`, error instanceof Error ? error.message : error);
     }

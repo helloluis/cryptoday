@@ -60,14 +60,8 @@ export async function POST(request: NextRequest) {
 
   const totalAdded = results.reduce((sum, r) => sum + r.added, 0);
 
-  let analyzed = 0;
-  if (totalAdded > 0) {
-    analyzed = await analyzeUnprocessed(totalAdded + 5);
-  }
-
-  // Also analyze any previously unanalyzed articles
-  const remainingUnanalyzed = await analyzeUnprocessed(20);
-  analyzed += remainingUnanalyzed;
+  // Single pass: analyze new + any backlog, capped at 15 per harvest
+  const analyzed = await analyzeUnprocessed(Math.min(totalAdded + 5, 15));
 
   // Generate summary if we don't have one for the current period
   let summaryGenerated = false;
