@@ -72,7 +72,7 @@ export async function analyzeArticle(
   const text = content ? `${title}\n\n${content.slice(0, 1500)}` : title;
 
   const response = await client.chat.completions.create({
-    model: "qwen3.5-plus",
+    model: "qwen3.5-flash",
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: `1. ${text}` },
@@ -120,7 +120,7 @@ async function analyzeBatch(
   const maxTokens = Math.min(articles.length * 150, 4000);
 
   const response = await client.chat.completions.create({
-    model: "qwen3.5-plus",
+    model: "qwen3.5-flash",
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: digest },

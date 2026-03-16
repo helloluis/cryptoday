@@ -103,7 +103,7 @@ export default async function HomePage() {
             </h1>
             <p className="text-xs text-text-dim max-w-2xl leading-relaxed">
               News aggregation and sentiment analysis, harvested and analyzed hourly by{" "}
-              <span className="text-text-muted">Qwen 3.5 Plus</span>. Designed by{" "}
+              <span className="text-text-muted">Qwen 3.5</span>. Designed by{" "}
               <a
                 href="https://x.com/helloluis"
                 className="text-primary hover:text-primary-light transition-colors"

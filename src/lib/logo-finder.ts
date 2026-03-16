@@ -40,7 +40,7 @@ interface LogoSearchResult {
 async function searchForLogo(brand: string): Promise<LogoSearchResult> {
   try {
     const response = await client.chat.completions.create({
-      model: "qwen3.5-plus",
+      model: "qwen3.5-flash",
       messages: [
         {
           role: "system",
@@ -214,7 +214,7 @@ export async function discoverMissingLogos(limit = 5): Promise<{ discovered: num
 
   try {
     const response = await client.chat.completions.create({
-      model: "qwen3.5-plus",
+      model: "qwen3.5-flash",
       messages: [
         {
           role: "system",
