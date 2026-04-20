@@ -11,6 +11,10 @@ export const metadata: Metadata = {
     description: "AI-powered crypto news aggregation and sentiment analysis",
     type: "website",
   },
+  other: {
+    "talentapp:project_verification":
+      "f274785523632eb0117ed0417e73433bdc2719d0d8b7bb109787e7f9c1c8687a034239105032e5dd3fe211666f9b9b7fea60ef57d39650e9ad7bca1af85d4170",
+  },
 };
 
 export const viewport: Viewport = {
