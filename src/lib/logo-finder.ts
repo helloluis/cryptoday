@@ -3,29 +3,116 @@ import { prisma } from "./db";
 import * as fs from "fs";
 import * as path from "path";
 
-const client = new OpenAI({
-  apiKey: process.env.DASHSCOPE_API_KEY,
-  baseURL: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
-});
+let _client: OpenAI | null = null;
+function getClient(): OpenAI {
+  if (!_client) {
+    _client = new OpenAI({
+      apiKey: process.env.VULTR_INFERENCE_API_KEY,
+      baseURL: "https://api.vultrinference.com/v1",
+    });
+  }
+  return _client;
+}
 
 const LOGOS_DIR = path.join(process.cwd(), "public", "logos");
+const KAMAI_API_KEY =
+  process.env.KAMAI_API_KEY || "cd_news_qfEoOjTVpiPk95egewrfQneT";
+const KAMAI_BASE = "https://kamai.minai.work/api/v1";
 
 // Brands we already have hardcoded logos for — skip these
 const KNOWN_BRANDS = new Set([
-  "bitcoin", "btc", "ethereum", "eth", "solana", "sol", "xrp", "ripple",
-  "cardano", "ada", "bnb", "dogecoin", "doge", "polkadot", "dot",
-  "avalanche", "avax", "chainlink", "link", "uniswap", "uni",
-  "polygon", "matic", "tether", "usdt", "usdc", "usd coin",
-  "litecoin", "ltc", "tron", "trx", "aave", "near", "sui",
-  "stellar", "xlm", "cosmos", "atom", "monero", "xmr", "aptos", "apt",
-  "arbitrum", "arb", "optimism", "op", "filecoin", "fil", "hedera", "hbar",
-  "injective", "inj", "algorand", "algo", "internet computer", "icp",
-  "vechain", "vet", "kaspa", "kas", "maker", "mkr", "theta",
-  "mantle", "mnt", "sei", "worldcoin", "wld", "stacks", "stx",
-  "celestia", "tia", "lido", "ldo", "ondo", "pepe",
-  "the graph", "grt", "fetch.ai", "fet",
-  "coinbase", "binance", "opensea", "okx", "kucoin",
-  "robinhood", "circle", "blockchain.com", "paypal", "stripe", "revolut", "uphold",
+  "bitcoin",
+  "btc",
+  "ethereum",
+  "eth",
+  "solana",
+  "sol",
+  "xrp",
+  "ripple",
+  "cardano",
+  "ada",
+  "bnb",
+  "dogecoin",
+  "doge",
+  "polkadot",
+  "dot",
+  "avalanche",
+  "avax",
+  "chainlink",
+  "link",
+  "uniswap",
+  "uni",
+  "polygon",
+  "matic",
+  "tether",
+  "usdt",
+  "usdc",
+  "usd coin",
+  "litecoin",
+  "ltc",
+  "tron",
+  "trx",
+  "aave",
+  "near",
+  "sui",
+  "stellar",
+  "xlm",
+  "cosmos",
+  "atom",
+  "monero",
+  "xmr",
+  "aptos",
+  "apt",
+  "arbitrum",
+  "arb",
+  "optimism",
+  "op",
+  "filecoin",
+  "fil",
+  "hedera",
+  "hbar",
+  "injective",
+  "inj",
+  "algorand",
+  "algo",
+  "internet computer",
+  "icp",
+  "vechain",
+  "vet",
+  "kaspa",
+  "kas",
+  "maker",
+  "mkr",
+  "theta",
+  "mantle",
+  "mnt",
+  "sei",
+  "worldcoin",
+  "wld",
+  "stacks",
+  "stx",
+  "celestia",
+  "tia",
+  "lido",
+  "ldo",
+  "ondo",
+  "pepe",
+  "the graph",
+  "grt",
+  "fetch.ai",
+  "fet",
+  "coinbase",
+  "binance",
+  "opensea",
+  "okx",
+  "kucoin",
+  "robinhood",
+  "circle",
+  "blockchain.com",
+  "paypal",
+  "stripe",
+  "revolut",
+  "uphold",
 ]);
 
 interface LogoSearchResult {
@@ -35,16 +122,55 @@ interface LogoSearchResult {
 }
 
 /**
- * Use Qwen with web search to find an SVG logo URL for a brand.
+ * Use kamai web-search to find SVG logo URLs for a brand, then extract with MiniMax.
  */
 async function searchForLogo(brand: string): Promise<LogoSearchResult> {
   try {
-    const response = await client.chat.completions.create({
-      model: "qwen3.5-flash",
+    // Step 1: Search the web via kamai for SVG logo URLs
+    const searchQuery = encodeURIComponent(
+      `${brand} logo svg site:cryptologos.cc OR site:github.com/simple-icons OR site:svgporn.com`,
+    );
+    const browseResp = await fetch(`${KAMAI_BASE}/browse`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": KAMAI_API_KEY,
+      },
+      body: JSON.stringify({
+        url: `https://www.google.com/search?q=${searchQuery}`,
+        timeout: 20000,
+      }),
+      signal: AbortSignal.timeout(25000),
+    });
+
+    const browseData = (await browseResp.json()) as {
+      ok: boolean;
+      text?: string;
+      links?: Array<{ text: string; href: string }>;
+    };
+
+    if (!browseData.ok || (!browseData.text && !browseData.links?.length)) {
+      console.error(`[LogoFinder] No search results for "${brand}"`);
+      return { brand, svgUrl: null, keywords: [brand.toLowerCase()] };
+    }
+
+    // Step 2: Use MiniMax to extract SVG URLs from the search results
+    const searchContext = [
+      browseData.text?.slice(0, 3000) || "",
+      ...(browseData.links || [])
+        .slice(0, 20)
+        .map((l) => `${l.text}: ${l.href}`)
+        .join("\n"),
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
+    const response = await getClient().chat.completions.create({
+      model: "MiniMaxAI/MiniMax-M2.7",
       messages: [
         {
           role: "system",
-          content: `You are a helper that finds SVG logo download URLs for cryptocurrency and blockchain brands. Given a brand name, search the web and find a direct URL to an SVG logo file for that brand.
+          content: `You are a helper that finds SVG logo download URLs for cryptocurrency and blockchain brands. You will be given web search results for a brand's logo. Extract the best direct SVG logo URL from the results.
 
 Preferred sources (in order):
 1. cryptologos.cc — URL pattern: https://cryptologos.cc/logos/{name}-{ticker}-logo.svg
@@ -61,31 +187,40 @@ If you cannot find an SVG URL, respond: {"svgUrl":null,"keywords":["keyword1","k
         },
         {
           role: "user",
-          content: `Find an SVG logo for: ${brand}`,
+          content: `Search results for "${brand}":\n\n${searchContext}`,
         },
       ],
       temperature: 0.2,
       max_tokens: 300,
-      // @ts-expect-error DashScope extension for web search
-      enable_search: true,
     });
 
     const raw = response.choices[0]?.message?.content?.trim() || "";
-    const cleaned = raw.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "").trim();
+    const cleaned = raw
+      .replace(/^```(?:json)?\s*/, "")
+      .replace(/\s*```$/, "")
+      .trim();
 
     try {
       const parsed = JSON.parse(cleaned);
       return {
         brand,
         svgUrl: parsed.svgUrl || null,
-        keywords: Array.isArray(parsed.keywords) ? parsed.keywords : [brand.toLowerCase()],
+        keywords: Array.isArray(parsed.keywords)
+          ? parsed.keywords
+          : [brand.toLowerCase()],
       };
     } catch {
-      console.error(`[LogoFinder] Failed to parse response for "${brand}":`, raw);
+      console.error(
+        `[LogoFinder] Failed to parse response for "${brand}":`,
+        raw,
+      );
       return { brand, svgUrl: null, keywords: [brand.toLowerCase()] };
     }
   } catch (error) {
-    console.error(`[LogoFinder] API error for "${brand}":`, error instanceof Error ? error.message : error);
+    console.error(
+      `[LogoFinder] API error for "${brand}":`,
+      error instanceof Error ? error.message : error,
+    );
     return { brand, svgUrl: null, keywords: [brand.toLowerCase()] };
   }
 }
@@ -115,7 +250,10 @@ async function downloadSvg(url: string, brand: string): Promise<string | null> {
       return null;
     }
 
-    const slug = brand.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const slug = brand
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
     const filename = `${slug}-logo.svg`;
     const filepath = path.join(LOGOS_DIR, filename);
 
@@ -135,7 +273,10 @@ async function downloadSvg(url: string, brand: string): Promise<string | null> {
     console.log(`[LogoFinder] Saved logo: ${filename}`);
     return filename;
   } catch (error) {
-    console.error(`[LogoFinder] Download error for ${url}:`, error instanceof Error ? error.message : error);
+    console.error(
+      `[LogoFinder] Download error for ${url}:`,
+      error instanceof Error ? error.message : error,
+    );
     return null;
   }
 }
@@ -144,7 +285,9 @@ async function downloadSvg(url: string, brand: string): Promise<string | null> {
  * Attempt to find and download a logo for a brand.
  * Registers it in the BrandLogo table on success.
  */
-export async function discoverLogo(brand: string): Promise<{ found: boolean; filename?: string }> {
+export async function discoverLogo(
+  brand: string,
+): Promise<{ found: boolean; filename?: string }> {
   const brandLower = brand.toLowerCase().trim();
 
   // Skip if it's a known hardcoded brand
@@ -153,7 +296,9 @@ export async function discoverLogo(brand: string): Promise<{ found: boolean; fil
   }
 
   // Check if we already have it in the DB
-  const existing = await prisma.brandLogo.findUnique({ where: { brand: brandLower } });
+  const existing = await prisma.brandLogo.findUnique({
+    where: { brand: brandLower },
+  });
   if (existing) {
     return { found: true, filename: existing.filename };
   }
@@ -163,14 +308,16 @@ export async function discoverLogo(brand: string): Promise<{ found: boolean; fil
 
   if (!result.svgUrl) {
     // Store a "not found" entry so we don't keep searching
-    await prisma.brandLogo.create({
-      data: {
-        brand: brandLower,
-        keywords: result.keywords,
-        filename: "",
-        source: "auto-notfound",
-      },
-    }).catch(() => {}); // ignore unique constraint race
+    await prisma.brandLogo
+      .create({
+        data: {
+          brand: brandLower,
+          keywords: result.keywords,
+          filename: "",
+          source: "auto-notfound",
+        },
+      })
+      .catch(() => {}); // ignore unique constraint race
     return { found: false };
   }
 
@@ -182,14 +329,16 @@ export async function discoverLogo(brand: string): Promise<{ found: boolean; fil
   }
 
   // Register in DB
-  await prisma.brandLogo.create({
-    data: {
-      brand: brandLower,
-      keywords: result.keywords,
-      filename,
-      source: "auto",
-    },
-  }).catch(() => {}); // ignore unique constraint race
+  await prisma.brandLogo
+    .create({
+      data: {
+        brand: brandLower,
+        keywords: result.keywords,
+        filename,
+        source: "auto",
+      },
+    })
+    .catch(() => {}); // ignore unique constraint race
 
   return { found: true, filename };
 }
@@ -198,7 +347,9 @@ export async function discoverLogo(brand: string): Promise<{ found: boolean; fil
  * Scan recent articles for brands/entities that don't have logos yet.
  * Uses Qwen to extract brand names from article titles, then tries to find logos.
  */
-export async function discoverMissingLogos(limit = 5): Promise<{ discovered: number; brands: string[] }> {
+export async function discoverMissingLogos(
+  limit = 5,
+): Promise<{ discovered: number; brands: string[] }> {
   // Get recent unique categories that aren't in our known set
   const recentArticles = await prisma.article.findMany({
     where: { analyzed: true },
@@ -213,8 +364,8 @@ export async function discoverMissingLogos(limit = 5): Promise<{ discovered: num
   let brandsToSearch: string[] = [];
 
   try {
-    const response = await client.chat.completions.create({
-      model: "qwen3.5-flash",
+    const response = await getClient().chat.completions.create({
+      model: "MiniMaxAI/MiniMax-M2.7",
       messages: [
         {
           role: "system",
@@ -233,16 +384,22 @@ Respond with ONLY a JSON array of unique brand names, lowercase:
     });
 
     const raw = response.choices[0]?.message?.content?.trim() || "";
-    const cleaned = raw.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "").trim();
+    const cleaned = raw
+      .replace(/^```(?:json)?\s*/, "")
+      .replace(/\s*```$/, "")
+      .trim();
     brandsToSearch = JSON.parse(cleaned);
   } catch (error) {
-    console.error("[LogoFinder] Failed to extract brands:", error instanceof Error ? error.message : error);
+    console.error(
+      "[LogoFinder] Failed to extract brands:",
+      error instanceof Error ? error.message : error,
+    );
     return { discovered: 0, brands: [] };
   }
 
   // Filter out brands we already know
   const unknownBrands = brandsToSearch.filter(
-    (b) => !KNOWN_BRANDS.has(b.toLowerCase())
+    (b) => !KNOWN_BRANDS.has(b.toLowerCase()),
   );
 
   // Check DB for already-attempted brands
@@ -252,7 +409,9 @@ Respond with ONLY a JSON array of unique brand names, lowercase:
   });
   const existingSet = new Set(existingLogos.map((l) => l.brand));
 
-  const newBrands = unknownBrands.filter((b) => !existingSet.has(b.toLowerCase()));
+  const newBrands = unknownBrands.filter(
+    (b) => !existingSet.has(b.toLowerCase()),
+  );
 
   // Limit how many we discover per run
   const toDiscover = newBrands.slice(0, limit);
@@ -273,7 +432,9 @@ Respond with ONLY a JSON array of unique brand names, lowercase:
 /**
  * Get all auto-discovered logos from the DB for use in the feed.
  */
-export async function getAutoLogos(): Promise<Array<{ brand: string; keywords: string[]; filename: string }>> {
+export async function getAutoLogos(): Promise<
+  Array<{ brand: string; keywords: string[]; filename: string }>
+> {
   return prisma.brandLogo.findMany({
     where: {
       source: "auto",

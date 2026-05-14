@@ -1,15 +1,48 @@
 import OpenAI from "openai";
 import { prisma } from "./db";
 
-const client = new OpenAI({
-  apiKey: process.env.DASHSCOPE_API_KEY,
-  baseURL: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
-});
+let _client: OpenAI | null = null;
+function getClient(): OpenAI {
+  if (!_client) {
+    _client = new OpenAI({
+      apiKey: process.env.VULTR_INFERENCE_API_KEY,
+      baseURL: "https://api.vultrinference.com/v1",
+    });
+  }
+  return _client;
+}
 
 const CRYPTO_TOKENS = [
-  "BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "DOGE", "AVAX", "DOT", "MATIC",
-  "LINK", "UNI", "ATOM", "LTC", "FIL", "APT", "ARB", "OP", "SUI", "SEI",
-  "NEAR", "PEPE", "SHIB", "TRX", "TON", "HBAR", "ICP", "INJ", "TIA", "JUP",
+  "BTC",
+  "ETH",
+  "SOL",
+  "BNB",
+  "XRP",
+  "ADA",
+  "DOGE",
+  "AVAX",
+  "DOT",
+  "MATIC",
+  "LINK",
+  "UNI",
+  "ATOM",
+  "LTC",
+  "FIL",
+  "APT",
+  "ARB",
+  "OP",
+  "SUI",
+  "SEI",
+  "NEAR",
+  "PEPE",
+  "SHIB",
+  "TRX",
+  "TON",
+  "HBAR",
+  "ICP",
+  "INJ",
+  "TIA",
+  "JUP",
 ];
 
 const SYSTEM_PROMPT = `You are a crypto news analyst and curator for an English-language crypto news aggregator based in the Philippines.
@@ -67,24 +100,25 @@ const DEFAULT_RESULT: AnalysisResult = {
 /** Analyze a single article (used as fallback and by backfillCuration) */
 export async function analyzeArticle(
   title: string,
-  content: string | null
+  content: string | null,
 ): Promise<AnalysisResult> {
   const text = content ? `${title}\n\n${content.slice(0, 1500)}` : title;
 
-  const response = await client.chat.completions.create({
-    model: "qwen3.5-flash",
+  const response = await getClient().chat.completions.create({
+    model: "MiniMaxAI/MiniMax-M2.7",
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: `1. ${text}` },
     ],
     temperature: 0.3,
     max_tokens: 400,
-    // @ts-expect-error — DashScope extension to disable Qwen thinking mode
-    enable_thinking: false,
   });
 
   const raw = response.choices[0]?.message?.content?.trim() || "";
-  const cleaned = raw.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "").trim();
+  const cleaned = raw
+    .replace(/^```(?:json)?\s*/, "")
+    .replace(/\s*```$/, "")
+    .trim();
 
   try {
     const parsed = JSON.parse(cleaned);
@@ -92,7 +126,8 @@ export async function analyzeArticle(
     return {
       summary: item.summary || "No summary available.",
       category: item.category || "ALL",
-      sentimentScore: typeof item.sentimentScore === "number" ? item.sentimentScore : 0,
+      sentimentScore:
+        typeof item.sentimentScore === "number" ? item.sentimentScore : 0,
       sentimentLabel: item.sentimentLabel || "neutral",
       relevant: item.relevant !== false,
       hiddenReason: item.hiddenReason || null,
@@ -105,13 +140,15 @@ export async function analyzeArticle(
 
 /** Analyze multiple articles in a single API call */
 async function analyzeBatch(
-  articles: { id: string; title: string; content: string | null }[]
+  articles: { id: string; title: string; content: string | null }[],
 ): Promise<Map<string, AnalysisResult>> {
   const results = new Map<string, AnalysisResult>();
 
   const digest = articles
     .map((a, i) => {
-      const text = a.content ? `${a.title}\n${a.content.slice(0, 800)}` : a.title;
+      const text = a.content
+        ? `${a.title}\n${a.content.slice(0, 800)}`
+        : a.title;
       return `${i + 1}. ${text}`;
     })
     .join("\n\n");
@@ -119,34 +156,39 @@ async function analyzeBatch(
   // Scale max_tokens with batch size (~120 tokens per article)
   const maxTokens = Math.min(articles.length * 150, 4000);
 
-  const response = await client.chat.completions.create({
-    model: "qwen3.5-flash",
+  const response = await getClient().chat.completions.create({
+    model: "MiniMaxAI/MiniMax-M2.7",
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: digest },
     ],
     temperature: 0.3,
     max_tokens: maxTokens,
-    // @ts-expect-error — DashScope extension to disable Qwen thinking mode
-    enable_thinking: false,
   });
 
   const raw = response.choices[0]?.message?.content?.trim() || "";
-  const cleaned = raw.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "").trim();
+  const cleaned = raw
+    .replace(/^```(?:json)?\s*/, "")
+    .replace(/\s*```$/, "")
+    .trim();
 
   try {
     const parsed = JSON.parse(cleaned);
-    const items: Array<Record<string, unknown>> = Array.isArray(parsed) ? parsed : [parsed];
+    const items: Array<Record<string, unknown>> = Array.isArray(parsed)
+      ? parsed
+      : [parsed];
 
     for (const item of items) {
-      const idx = typeof item.id === "number" ? item.id - 1 : items.indexOf(item);
+      const idx =
+        typeof item.id === "number" ? item.id - 1 : items.indexOf(item);
       const article = articles[idx];
       if (!article) continue;
 
       results.set(article.id, {
         summary: (item.summary as string) || "No summary available.",
         category: (item.category as string) || "ALL",
-        sentimentScore: typeof item.sentimentScore === "number" ? item.sentimentScore : 0,
+        sentimentScore:
+          typeof item.sentimentScore === "number" ? item.sentimentScore : 0,
         sentimentLabel: (item.sentimentLabel as string) || "neutral",
         relevant: item.relevant !== false,
         hiddenReason: (item.hiddenReason as string) || null,
@@ -193,12 +235,17 @@ export async function analyzeUnprocessed(limit = 15): Promise<number> {
 
       if (!result.relevant) {
         hidden++;
-        console.log(`[Analyzer] Hidden: "${article.title.slice(0, 80)}" — ${result.hiddenReason}`);
+        console.log(
+          `[Analyzer] Hidden: "${article.title.slice(0, 80)}" — ${result.hiddenReason}`,
+        );
       }
 
       processed++;
     } catch (error) {
-      console.error(`[Analyzer] Error saving "${article.title}":`, error instanceof Error ? error.message : error);
+      console.error(
+        `[Analyzer] Error saving "${article.title}":`,
+        error instanceof Error ? error.message : error,
+      );
     }
   }
 
@@ -213,7 +260,9 @@ export async function analyzeUnprocessed(limit = 15): Promise<number> {
  * Backfill: re-evaluate already-analyzed articles for relevance.
  * Only touches articles that haven't been curated yet (hiddenReason is null and hidden is false).
  */
-export async function backfillCuration(limit = 20): Promise<{ processed: number; hidden: number }> {
+export async function backfillCuration(
+  limit = 20,
+): Promise<{ processed: number; hidden: number }> {
   const articles = await prisma.article.findMany({
     where: {
       analyzed: true,
@@ -233,7 +282,10 @@ export async function backfillCuration(limit = 20): Promise<{ processed: number;
   let hidden = 0;
 
   for (const article of articles) {
-    const result = batchResults.get(article.id) || { ...DEFAULT_RESULT, hiddenReason: "reviewed" };
+    const result = batchResults.get(article.id) || {
+      ...DEFAULT_RESULT,
+      hiddenReason: "reviewed",
+    };
 
     try {
       await prisma.article.update({
@@ -250,12 +302,17 @@ export async function backfillCuration(limit = 20): Promise<{ processed: number;
 
       if (!result.relevant) {
         hidden++;
-        console.log(`[Backfill] Hidden: "${article.title.slice(0, 80)}" — ${result.hiddenReason}`);
+        console.log(
+          `[Backfill] Hidden: "${article.title.slice(0, 80)}" — ${result.hiddenReason}`,
+        );
       }
 
       processed++;
     } catch (error) {
-      console.error(`[Backfill] Error on "${article.title.slice(0, 60)}":`, error instanceof Error ? error.message : error);
+      console.error(
+        `[Backfill] Error on "${article.title.slice(0, 60)}":`,
+        error instanceof Error ? error.message : error,
+      );
     }
   }
 

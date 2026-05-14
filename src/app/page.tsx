@@ -11,11 +11,22 @@ import { NewsSummary } from "./components/NewsSummary";
 async function getStats() {
   try {
     const [totalArticles, totalSocialPosts, latestArticle] = await Promise.all([
-      prisma.article.count({ where: { sourceSlug: { notIn: ["x", "reddit", "farcaster"] } } }),
-      prisma.article.count({ where: { sourceSlug: { in: ["x", "reddit", "farcaster"] } } }),
-      prisma.article.findFirst({ orderBy: { publishedAt: "desc" }, select: { publishedAt: true } }),
+      prisma.article.count({
+        where: { sourceSlug: { notIn: ["x", "reddit", "farcaster"] } },
+      }),
+      prisma.article.count({
+        where: { sourceSlug: { in: ["x", "reddit", "farcaster"] } },
+      }),
+      prisma.article.findFirst({
+        orderBy: { publishedAt: "desc" },
+        select: { publishedAt: true },
+      }),
     ]);
-    return { totalArticles, totalSocialPosts, lastUpdated: latestArticle?.publishedAt ?? null };
+    return {
+      totalArticles,
+      totalSocialPosts,
+      lastUpdated: latestArticle?.publishedAt ?? null,
+    };
   } catch {
     return { totalArticles: 0, totalSocialPosts: 0, lastUpdated: null };
   }
@@ -42,13 +53,16 @@ async function getSampleArticles() {
       },
     });
     // Dedup by exact title — prefer original source over Google News
-    const seen = new Map<string, typeof raw[0]>();
+    const seen = new Map<string, (typeof raw)[0]>();
     for (const article of raw) {
       const key = article.title.toLowerCase().trim();
       const existing = seen.get(key);
       if (!existing) {
         seen.set(key, article);
-      } else if (existing.source.startsWith("Google News") && !article.source.startsWith("Google News")) {
+      } else if (
+        existing.source.startsWith("Google News") &&
+        !article.source.startsWith("Google News")
+      ) {
         seen.set(key, article);
       }
     }
@@ -102,8 +116,9 @@ export default async function HomePage() {
               <span className="text-primary">CryptoDay</span> News
             </h1>
             <p className="text-xs text-text-dim max-w-2xl leading-relaxed">
-              News aggregation and sentiment analysis, harvested and analyzed hourly by{" "}
-              <span className="text-text-muted">Qwen 3.5</span>. Designed by{" "}
+              News aggregation and sentiment analysis, harvested and analyzed
+              hourly by <span className="text-text-muted">MiniMax M2.7</span>.
+              Designed by{" "}
               <a
                 href="https://x.com/helloluis"
                 className="text-primary hover:text-primary-light transition-colors"

@@ -1,16 +1,32 @@
 import OpenAI from "openai";
 import { prisma } from "./db";
 
-const client = new OpenAI({
-  apiKey: process.env.DASHSCOPE_API_KEY,
-  baseURL: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
-});
+let _client: OpenAI | null = null;
+function getClient(): OpenAI {
+  if (!_client) {
+    _client = new OpenAI({
+      apiKey: process.env.VULTR_INFERENCE_API_KEY,
+      baseURL: "https://api.vultrinference.com/v1",
+    });
+  }
+  return _client;
+}
 
 /** Get the start of the current 4-hour period (00, 04, 08, 12, 16, 20 UTC) */
 export function getCurrentPeriodStart(): Date {
   const now = new Date();
   const hour = Math.floor(now.getUTCHours() / 4) * 4;
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hour, 0, 0, 0));
+  return new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      hour,
+      0,
+      0,
+      0,
+    ),
+  );
 }
 
 /** Get the most recent completed 4-hour period */
@@ -55,7 +71,13 @@ export async function getOrCreateSummary(): Promise<{
       publishedAt: { gte: currentStart, lt: currentEnd },
     },
     orderBy: { publishedAt: "desc" },
-    select: { title: true, summary: true, source: true, category: true, sentimentScore: true },
+    select: {
+      title: true,
+      summary: true,
+      source: true,
+      category: true,
+      sentimentScore: true,
+    },
   });
   let periodStart = currentStart;
   let periodEnd = currentEnd;
@@ -69,7 +91,13 @@ export async function getOrCreateSummary(): Promise<{
         publishedAt: { gte: lastStart, lt: lastEnd },
       },
       orderBy: { publishedAt: "desc" },
-      select: { title: true, summary: true, source: true, category: true, sentimentScore: true },
+      select: {
+        title: true,
+        summary: true,
+        source: true,
+        category: true,
+        sentimentScore: true,
+      },
     });
     periodStart = lastStart;
     periodEnd = lastEnd;
@@ -81,7 +109,13 @@ export async function getOrCreateSummary(): Promise<{
       where: { analyzed: true, hidden: false },
       orderBy: { publishedAt: "desc" },
       take: 30,
-      select: { title: true, summary: true, source: true, category: true, sentimentScore: true },
+      select: {
+        title: true,
+        summary: true,
+        source: true,
+        category: true,
+        sentimentScore: true,
+      },
     });
     if (articles.length === 0) return null;
   }
@@ -96,10 +130,12 @@ export async function getOrCreateSummary(): Promise<{
     })
     .join("\n");
 
-  const avgSentiment = articles.reduce((sum, a) => sum + (a.sentimentScore || 0), 0) / articles.length;
+  const avgSentiment =
+    articles.reduce((sum, a) => sum + (a.sentimentScore || 0), 0) /
+    articles.length;
 
-  const response = await client.chat.completions.create({
-    model: "qwen3.5-plus",
+  const response = await getClient().chat.completions.create({
+    model: "MiniMaxAI/MiniMax-M2.7",
     messages: [
       {
         role: "system",
@@ -132,7 +168,10 @@ sentimentLabel: one of "very_bearish", "bearish", "neutral", "bullish", "very_bu
   });
 
   const raw = response.choices[0]?.message?.content?.trim() || "";
-  const cleaned = raw.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "").trim();
+  const cleaned = raw
+    .replace(/^```(?:json)?\s*/, "")
+    .replace(/\s*```$/, "")
+    .trim();
 
   let summaryText: string;
   let sentimentScore: number;
@@ -141,13 +180,21 @@ sentimentLabel: one of "very_bearish", "bearish", "neutral", "bullish", "very_bu
   try {
     const parsed = JSON.parse(cleaned);
     summaryText = parsed.summary || "Summary unavailable.";
-    sentimentScore = typeof parsed.sentimentScore === "number" ? parsed.sentimentScore : avgSentiment;
+    sentimentScore =
+      typeof parsed.sentimentScore === "number"
+        ? parsed.sentimentScore
+        : avgSentiment;
     sentimentLabel = parsed.sentimentLabel || "neutral";
   } catch {
     console.error("[Summary] Failed to parse:", raw);
     summaryText = "Summary generation failed.";
     sentimentScore = avgSentiment;
-    sentimentLabel = avgSentiment > 0.3 ? "bullish" : avgSentiment < -0.3 ? "bearish" : "neutral";
+    sentimentLabel =
+      avgSentiment > 0.3
+        ? "bullish"
+        : avgSentiment < -0.3
+          ? "bearish"
+          : "neutral";
   }
 
   // Cache it
