@@ -61,9 +61,13 @@ export async function harvestSource(source: FeedSource): Promise<number> {
         if (originalPub) {
           displaySource = `${source.name} (${originalPub})`;
         }
-        // Google News appends " - SourceName" to titles — strip it
+        // Google News and domain search feeds append " - SourceName" to titles — strip it
         if (source.slug === "googlenews") {
           displayTitle = displayTitle.replace(/\s+-\s+[^-]+$/, "");
+        } else if (source.slug === "bilyonaryo") {
+          displayTitle = displayTitle.replace(/\s+-\s+Bilyonaryo\s+Business\s+News$/i, "").replace(/\s+-\s+Bilyonaryo$/i, "");
+        } else if (source.slug === "insiderph") {
+          displayTitle = displayTitle.replace(/\s+-\s+InsiderPH$/i, "");
         }
       }
 

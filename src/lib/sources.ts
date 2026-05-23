@@ -98,6 +98,20 @@ export const SOURCES: FeedSource[] = [
     website: "watcher.guru",
   },
   {
+    name: "Bilyonaryo",
+    slug: "bilyonaryo",
+    feedUrl: "https://news.google.com/rss/search?q=site:bilyonaryo.com&hl=en-US&gl=US&ceid=US:en",
+    website: "bilyonaryo.com",
+    isAggregator: true,
+  },
+  {
+    name: "InsiderPH",
+    slug: "insiderph",
+    feedUrl: "https://news.google.com/rss/search?q=site:insiderph.com&hl=en-US&gl=US&ceid=US:en",
+    website: "insiderph.com",
+    isAggregator: true,
+  },
+  {
     name: "Google News",
     slug: "googlenews",
     feedUrl: "https://news.google.com/rss/search?q=cryptocurrency+OR+bitcoin+OR+blockchain&hl=en-US&gl=US&ceid=US:en",

@@ -66,6 +66,7 @@ Relevance rules (set relevant=false if ANY apply):
 2. IRRELEVANT: The article has zero connection to crypto AND zero macro significance. Corporate share buybacks, traditional stock transactions, small-cap equity filings, and routine corporate press releases should be hidden.
 3. TOO REGIONAL: The news is specific to a small regional company or local market with no global significance. Exception: Philippine companies/markets ARE relevant since our audience is Philippines-based. Exception: news about globally recognized companies (Fortune 500, major tech companies, major crypto exchanges) is always relevant regardless of region.
 4. PRESS RELEASE SPAM: Generic corporate press releases, share transaction notices, or regulatory filings with no crypto or macro relevance.
+5. CELEBRITY GOSSIP & TRIVIA: Showbiz news, celebrity gossip, luxury lifestyles, high-society rumors, or trivial non-business entertainment stories (especially common in local Philippine tabloids or lifestyle sections). We only want real macroeconomic, banking, policy, finance, or crypto stories.
 
 IMPORTANT — these topics are ALWAYS relevant even without explicit crypto mentions:
 - AI/artificial intelligence (major AI companies, regulation, breakthroughs) — AI and crypto markets are deeply intertwined
