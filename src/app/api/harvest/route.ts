@@ -3,6 +3,7 @@ import { harvestStaggered, harvestAll } from "@/lib/harvester";
 // import { harvestXTimeline } from "@/lib/x-harvester"; // disabled — X API returns 402
 import { harvestReddit } from "@/lib/reddit-harvester";
 import { harvestFarcaster } from "@/lib/farcaster-harvester";
+import { harvestFinnhub } from "@/lib/finnhub-harvester";
 import { harvestCustomSearches } from "@/lib/custom-search-harvester";
 import { analyzeUnprocessed, backfillCuration } from "@/lib/analyzer";
 import { getOrCreateSummary, getCurrentPeriodStart } from "@/lib/summary";
@@ -52,6 +53,10 @@ export async function POST(request: NextRequest) {
 
   const farcasterAdded = await harvestFarcaster();
   results.push({ source: "Farcaster", added: farcasterAdded });
+
+  // Harvest Finnhub global news
+  const finnhubAdded = await harvestFinnhub();
+  results.push({ source: "Finnhub", added: finnhubAdded });
 
   // Harvest custom searches for all API keys
   const customResults = await harvestCustomSearches();
