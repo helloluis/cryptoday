@@ -88,3 +88,38 @@ model BrandLogo {
 
   @@index([brand])
 }
+
+model CryptoPrice {
+  id        String   @id @default(uuid())
+  symbol    String   @unique // e.g. "BTCUSDT", "ETHUSDT"
+  price     Float
+  updatedAt DateTime @updatedAt
+}
+
+model CryptoPriceHistory {
+  id        String   @id @default(uuid())
+  symbol    String
+  price     Float
+  timestamp DateTime @default(now())
+
+  @@index([symbol, timestamp])
+}
+
+model ForexRate {
+  id        String   @id @default(uuid())
+  pair      String   @unique // e.g. "USDPHP", "EURPHP"
+  base      String   // e.g. "USD"
+  target    String   // e.g. "PHP"
+  rate      Float
+  updatedAt DateTime @updatedAt
+}
+
+model ForexRateHistory {
+  id        String   @id @default(uuid())
+  pair      String
+  rate      Float
+  timestamp DateTime @default(now())
+
+  @@index([pair, timestamp])
+}
+
