@@ -164,7 +164,7 @@ sentimentLabel: one of "very_bearish", "bearish", "neutral", "bullish", "very_bu
       },
     ],
     temperature: 0.4,
-    max_tokens: 2500,
+    max_tokens: 4000,
   });
 
   const raw = response.choices[0]?.message?.content?.trim() || "";

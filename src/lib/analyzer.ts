@@ -155,8 +155,8 @@ async function analyzeBatch(
     })
     .join("\n\n");
 
-  // Scale max_tokens with batch size (~250 tokens per article for reasoning overhead)
-  const maxTokens = Math.min(articles.length * 250, 4000);
+  // Scale max_tokens with batch size (~500 tokens per article + 4000 base for reasoning trace)
+  const maxTokens = Math.min(articles.length * 500 + 4000, 8192);
 
   const response = await getClient().chat.completions.create({
     model: "MiniMaxAI/MiniMax-M2.7",
@@ -221,7 +221,11 @@ export async function analyzeUnprocessed(limit = 15): Promise<number> {
   let hidden = 0;
 
   for (const article of articles) {
-    const result = batchResults.get(article.id) || { ...DEFAULT_RESULT };
+    let result = batchResults.get(article.id);
+    if (!result) {
+      console.log(`[Analyzer] Batch result missing for "${article.title.slice(0, 60)}". Falling back to individual analysis...`);
+      result = await analyzeArticle(article.title, article.content);
+    }
 
     try {
       await prisma.article.update({
@@ -286,10 +290,12 @@ export async function backfillCuration(
   let hidden = 0;
 
   for (const article of articles) {
-    const result = batchResults.get(article.id) || {
-      ...DEFAULT_RESULT,
-      hiddenReason: "reviewed",
-    };
+    let result = batchResults.get(article.id);
+    if (!result) {
+      console.log(`[Backfill] Batch result missing for "${article.title.slice(0, 60)}". Falling back to individual analysis...`);
+      const individualResult = await analyzeArticle(article.title, article.content);
+      result = { ...individualResult, hiddenReason: individualResult.hiddenReason || "reviewed" };
+    }
 
     try {
       await prisma.article.update({

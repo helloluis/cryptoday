@@ -381,7 +381,7 @@ Respond with ONLY a JSON array of unique brand names, lowercase:
         },
       ],
       temperature: 0.1,
-      max_tokens: 2500,
+      max_tokens: 4000,
     });
 
     const raw = response.choices[0]?.message?.content?.trim() || "";
