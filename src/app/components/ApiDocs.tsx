@@ -196,6 +196,92 @@ export function ApiDocs() {
         </div>
       </div>
 
+      {/* Crypto Prices Feed */}
+      <div className="rounded-lg border border-border bg-surface-card overflow-hidden">
+        <div className="px-4 py-3 border-b border-border">
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded text-xs font-mono font-medium bg-bullish/10 text-bullish border border-bullish/20">
+              GET
+            </span>
+            <span className="text-sm font-mono">/api/prices/crypto</span>
+            <span className="ml-auto text-xs text-[#eab308] font-medium bg-[#eab308]/10 px-2 py-0.5 rounded border border-[#eab308]/20">Quasi-Paywalled</span>
+          </div>
+        </div>
+        <div className="p-4 space-y-4">
+          <p className="text-sm text-text-muted">
+            Returns real-time crypto spot prices harvested from the Binance API every 5 minutes.
+          </p>
+          
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <h4 className="text-xs font-semibold text-text-dim uppercase tracking-wider">Free Tier (No Auth)</h4>
+              <p className="text-xs text-text-dim">
+                Only publishes <code className="px-1 py-0.5 rounded bg-surface-light border border-border text-primary font-mono text-xs">BTCUSDT</code> (BTC/USD).
+              </p>
+              <div className="rounded bg-surface-light border border-border p-2.5">
+                <code className="text-xs font-mono text-text-muted">
+                  curl https://news.cryptoday.live/api/prices/crypto
+                </code>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <h4 className="text-xs font-semibold text-[#eab308] uppercase tracking-wider">Pro Tier (API Key / Sister Apps)</h4>
+              <p className="text-xs text-text-dim">
+                Unlocks all 600+ Binance spot pairs (USDT pegged). Optional <code className="px-1 py-0.5 rounded bg-surface-light border border-border font-mono text-xs text-primary">?symbol=ETHUSDT</code> parameter is supported.
+              </p>
+              <div className="rounded bg-surface-light border border-border p-2.5">
+                <code className="text-xs font-mono text-text-muted whitespace-pre-wrap">{`curl -H "x-api-key: YOUR_KEY" \\
+  "https://news.cryptoday.live/api/prices/crypto?symbol=SOLUSDT"`}</code>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Forex Exchange Rates Feed */}
+      <div className="rounded-lg border border-border bg-surface-card overflow-hidden">
+        <div className="px-4 py-3 border-b border-border">
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded text-xs font-mono font-medium bg-bullish/10 text-bullish border border-bullish/20">
+              GET
+            </span>
+            <span className="text-sm font-mono">/api/prices/forex</span>
+            <span className="ml-auto text-xs text-[#eab308] font-medium bg-[#eab308]/10 px-2 py-0.5 rounded border border-[#eab308]/20">Quasi-Paywalled</span>
+          </div>
+        </div>
+        <div className="p-4 space-y-4">
+          <p className="text-sm text-text-muted">
+            Returns daily fiat exchange rates (ECB data) harvested from the Frankfurter API 2x daily.
+          </p>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <h4 className="text-xs font-semibold text-text-dim uppercase tracking-wider">Free Tier (No Auth)</h4>
+              <p className="text-xs text-text-dim">
+                Only publishes <code className="px-1 py-0.5 rounded bg-surface-light border border-border text-primary font-mono text-xs">USDPHP</code> (PHP rate).
+              </p>
+              <div className="rounded bg-surface-light border border-border p-2.5">
+                <code className="text-xs font-mono text-text-muted">
+                  curl https://news.cryptoday.live/api/prices/forex
+                </code>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <h4 className="text-xs font-semibold text-[#eab308] uppercase tracking-wider">Pro Tier (API Key / Sister Apps)</h4>
+              <p className="text-xs text-text-dim">
+                Unlocks 30+ global currencies. Optional filter <code className="px-1 py-0.5 rounded bg-surface-light border border-border font-mono text-xs text-primary">?target=EUR</code> or <code className="px-1 py-0.5 rounded bg-surface-light border border-border font-mono text-xs text-primary">?pair=USDGBP</code> is supported.
+              </p>
+              <div className="rounded bg-surface-light border border-border p-2.5">
+                <code className="text-xs font-mono text-text-muted whitespace-pre-wrap">{`curl -H "x-api-key: YOUR_KEY" \\
+  "https://news.cryptoday.live/api/prices/forex?target=SGD"`}</code>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Response Format */}
       <div className="rounded-lg border border-border bg-surface-card overflow-hidden">
         <div className="px-4 py-3 border-b border-border">
