@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { prisma } from "./db";
+import { recordUsage } from "./usage";
 
 let _client: OpenAI | null = null;
 function getClient(): OpenAI {
@@ -166,6 +167,8 @@ sentimentLabel: one of "very_bearish", "bearish", "neutral", "bullish", "very_bu
     temperature: 0.4,
     max_tokens: 4000,
   });
+
+  await recordUsage("digest", response.model, response.usage);
 
   const raw = response.choices[0]?.message?.content?.trim() || "";
   // Strip <think> blocks (with or without closing tag)

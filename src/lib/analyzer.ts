@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { prisma } from "./db";
+import { recordUsage } from "./usage";
 
 let _client: OpenAI | null = null;
 function getClient(): OpenAI {
@@ -115,6 +116,8 @@ export async function analyzeArticle(
     max_tokens: 1500,
   });
 
+  await recordUsage("analyze-single", response.model, response.usage);
+
   const raw = response.choices[0]?.message?.content?.trim() || "";
   // Strip <think> blocks (with or without closing tag)
   const cleaned = raw
@@ -168,6 +171,8 @@ async function analyzeBatch(
     temperature: 0.3,
     max_tokens: maxTokens,
   });
+
+  await recordUsage("analyze-batch", response.model, response.usage);
 
   const raw = response.choices[0]?.message?.content?.trim() || "";
   // Strip <think> blocks (with or without closing tag)

@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { prisma } from "./db";
+import { recordUsage } from "./usage";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -194,6 +195,8 @@ If you cannot find an SVG URL, respond: {"svgUrl":null,"keywords":["keyword1","k
       max_tokens: 1500,
     });
 
+    await recordUsage("logo-extract", response.model, response.usage);
+
     const raw = response.choices[0]?.message?.content?.trim() || "";
     const cleaned = raw
       .replace(/<think>[\s\S]*?(?:<\/think>|(?=\{|\[)|$)/gi, "")
@@ -383,6 +386,8 @@ Respond with ONLY a JSON array of unique brand names, lowercase:
       temperature: 0.1,
       max_tokens: 4000,
     });
+
+    await recordUsage("logo-brands", response.model, response.usage);
 
     const raw = response.choices[0]?.message?.content?.trim() || "";
     const cleaned = raw

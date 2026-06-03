@@ -69,6 +69,19 @@ model NewsSummary {
   @@index([periodStart])
 }
 
+model TokenUsage {
+  id               String   @id @default(uuid())
+  operation        String // "digest", "analyze-batch", "analyze-single", "logo-extract", "logo-brands"
+  model            String
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  totalTokens      Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  @@index([operation])
+  @@index([createdAt])
+}
+
 model Source {
   id       String  @id @default(uuid())
   name     String
