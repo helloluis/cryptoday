@@ -19,7 +19,7 @@ function stripHtml(html: string): string {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function extractOriginalSource(item: any, slug: string): string | null {
   // Google News: title format is "Headline - Source Name"
-  if (slug === "googlenews") {
+  if (slug.startsWith("googlenews")) {
     const match = item.title?.match(/\s+-\s+([^-]+)$/);
     return match ? match[1].trim() : null;
   }
@@ -62,7 +62,7 @@ export async function harvestSource(source: FeedSource): Promise<number> {
           displaySource = `${source.name} (${originalPub})`;
         }
         // Google News and domain search feeds append " - SourceName" to titles — strip it
-        if (source.slug === "googlenews") {
+        if (source.slug.startsWith("googlenews")) {
           displayTitle = displayTitle.replace(/\s+-\s+[^-]+$/, "");
         } else if (source.slug === "bilyonaryo") {
           displayTitle = displayTitle.replace(/\s+-\s+Bilyonaryo\s+Business\s+News$/i, "").replace(/\s+-\s+Bilyonaryo$/i, "");

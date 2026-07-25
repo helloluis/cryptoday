@@ -170,7 +170,7 @@ const COUNTRY_FLAGS: [RegExp, string][] = [
   [/\b(uae|dubai|abu dhabi|emirates)\b/i, "🇦🇪"],
   [/\b(nigeria|nigerian)\b/i, "🇳🇬"],
   [/\b(el salvador|salvadoran)\b/i, "🇸🇻"],
-  [/\b(philippines|filipino|coins\.ph)\b/i, "🇵🇭"],
+  [/\b(philippines|philippine|filipino|coins\.ph|bangko sentral|malacañang)\b/i, "🇵🇭"],
   [/\b(latin america)\b/i, "🌎"],
   [/\b(germany|german|berlin)\b/i, "🇩🇪"],
   [/\b(switzerland|swiss)\b/i, "🇨🇭"],

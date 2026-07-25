@@ -56,7 +56,7 @@ Each object must have these fields:
 Fields:
 - id: the article number from the input (1, 2, 3, etc.)
 - summary: concise 1-2 sentence summary of the key takeaway
-- category: if primarily about a specific cryptocurrency, use its ticker (${CRYPTO_TOKENS.join(", ")}). General crypto → "ALL". DeFi → "DEFI". NFTs → "NFT". Regulation → "REG".
+- category: if primarily about a specific cryptocurrency, use its ticker (${CRYPTO_TOKENS.join(", ")}). General crypto → "ALL". DeFi → "DEFI". NFTs → "NFT". Regulation outside the Philippines → "REG". Philippine politics, government, policy, or regulation → "PH" (takes precedence over REG and ALL for Philippine stories). Artificial intelligence not tied to a specific token → "AI".
 - sentimentScore: float from -1.0 (very bearish) to 1.0 (very bullish), 0 = neutral
 - sentimentLabel: one of "very_bearish", "bearish", "neutral", "bullish", "very_bullish"
 - relevant: boolean — should this article appear in our feed?
@@ -71,6 +71,9 @@ Relevance rules (set relevant=false if ANY apply):
 
 IMPORTANT — these topics are ALWAYS relevant even without explicit crypto mentions:
 - AI/artificial intelligence (major AI companies, regulation, breakthroughs) — AI and crypto markets are deeply intertwined
+- Philippine government releases and statements (PCO/Presidential Communications Office, Official Gazette, BSP/Bangko Sentral ng Pilipinas, SEC, DICT, Congress, Malacañang) — our audience tracks these directly
+- Philippine national politics, policy, and regulation — including memorandums, circulars, executive orders, and bills
+- Philippine AI and blockchain developments (startups, pilots, government programs, industry moves)
 - War, geopolitical conflict, sanctions, military escalation — these are macro catalysts that directly move crypto markets
 - Major central bank decisions, interest rates, inflation data, monetary policy
 - US regulation, SEC/CFTC actions, global financial regulation

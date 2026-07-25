@@ -118,6 +118,73 @@ export const SOURCES: FeedSource[] = [
     website: "news.google.com",
     isAggregator: true,
   },
+  // Philippine government and news sources
+  {
+    name: "PCO",
+    slug: "pco",
+    feedUrl: "https://pco.gov.ph/feed/",
+    website: "pco.gov.ph",
+  },
+  {
+    name: "Official Gazette",
+    slug: "officialgazette",
+    feedUrl: "https://www.officialgazette.gov.ph/feed/",
+    website: "officialgazette.gov.ph",
+  },
+  {
+    name: "Rappler",
+    slug: "rappler",
+    feedUrl: "https://www.rappler.com/rss/",
+    website: "rappler.com",
+  },
+  {
+    name: "BusinessWorld",
+    slug: "businessworld",
+    feedUrl: "https://www.bworldonline.com/feed/",
+    website: "bworldonline.com",
+  },
+  {
+    name: "Philstar",
+    slug: "philstar",
+    feedUrl: "https://www.philstar.com/rss/headlines",
+    website: "philstar.com",
+  },
+  // PH agencies without usable RSS (403/no feed) — pulled via Google News site search
+  {
+    name: "Google News BSP",
+    slug: "googlenews-bsp",
+    feedUrl: "https://news.google.com/rss/search?q=site:bsp.gov.ph&hl=en-US&gl=US&ceid=US:en",
+    website: "bsp.gov.ph",
+    isAggregator: true,
+  },
+  {
+    name: "Google News SEC PH",
+    slug: "googlenews-secph",
+    feedUrl: "https://news.google.com/rss/search?q=site:sec.gov.ph&hl=en-US&gl=US&ceid=US:en",
+    website: "sec.gov.ph",
+    isAggregator: true,
+  },
+  {
+    name: "Google News DICT",
+    slug: "googlenews-dict",
+    feedUrl: "https://news.google.com/rss/search?q=site:dict.gov.ph&hl=en-US&gl=US&ceid=US:en",
+    website: "dict.gov.ph",
+    isAggregator: true,
+  },
+  {
+    name: "Google News PH AI",
+    slug: "googlenews-ph-ai",
+    feedUrl: "https://news.google.com/rss/search?q=Philippines+(artificial+intelligence+OR+AI)&hl=en-US&gl=US&ceid=US:en",
+    website: "news.google.com",
+    isAggregator: true,
+  },
+  {
+    name: "Google News PH Crypto",
+    slug: "googlenews-ph-crypto",
+    feedUrl: "https://news.google.com/rss/search?q=Philippines+(blockchain+OR+cryptocurrency+OR+bitcoin+OR+web3)&hl=en-US&gl=US&ceid=US:en",
+    website: "news.google.com",
+    isAggregator: true,
+  },
   // GlobeNewsWire removed — 98% of its "Blockchain" feed is traditional corporate
   // share buybacks and press releases with no crypto relevance
 ];

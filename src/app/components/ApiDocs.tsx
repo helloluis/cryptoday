@@ -51,7 +51,7 @@ export function ApiDocs() {
             <h4 className="text-xs font-semibold text-text-dim uppercase tracking-wider">Query Parameters</h4>
             <div className="grid gap-1.5">
               {[
-                { param: "category", desc: "Filter by category (BTC, ETH, SOL, ALL, DEFI, NFT, REG, ...)" },
+                { param: "category", desc: "Filter by category (BTC, ETH, SOL, ALL, DEFI, NFT, REG, AI, PH, ...)" },
                 { param: "source", desc: "Filter by source slug (coindesk, cointelegraph, decrypt, ...)" },
                 { param: "page", desc: "Page number for pagination (default: 1)" },
               ].map((p) => (
@@ -278,6 +278,30 @@ export function ApiDocs() {
   "https://news.cryptoday.live/api/prices/forex?target=SGD"`}</code>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* News Digest */}
+      <div className="rounded-lg border border-border bg-surface-card overflow-hidden">
+        <div className="px-4 py-3 border-b border-border">
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded text-xs font-mono font-medium bg-bullish/10 text-bullish border border-bullish/20">
+              GET
+            </span>
+            <span className="text-sm font-mono">/api/digest</span>
+            <span className="ml-auto text-xs text-text-dim">No auth required</span>
+          </div>
+        </div>
+        <div className="p-4">
+          <p className="text-sm text-text-muted mb-3">
+            Returns the current AI-written news digest: a 6-sentence briefing across crypto, AI,
+            macro, and Philippine politics and regulation. Regenerated every 4 hours.
+          </p>
+          <div className="rounded bg-surface-light border border-border p-3">
+            <code className="text-xs font-mono text-text-muted">
+              curl https://news.cryptoday.live/api/digest
+            </code>
           </div>
         </div>
       </div>
