@@ -119,17 +119,20 @@ export const SOURCES: FeedSource[] = [
     isAggregator: true,
   },
   // Philippine government and news sources
+  // PCO and Official Gazette block datacenter IPs (403 from VPS) — pulled via Google News site search
   {
-    name: "PCO",
-    slug: "pco",
-    feedUrl: "https://pco.gov.ph/feed/",
+    name: "Google News PCO",
+    slug: "googlenews-pco",
+    feedUrl: "https://news.google.com/rss/search?q=site:pco.gov.ph&hl=en-US&gl=US&ceid=US:en",
     website: "pco.gov.ph",
+    isAggregator: true,
   },
   {
-    name: "Official Gazette",
-    slug: "officialgazette",
-    feedUrl: "https://www.officialgazette.gov.ph/feed/",
+    name: "Google News Official Gazette",
+    slug: "googlenews-gazette",
+    feedUrl: "https://news.google.com/rss/search?q=site:officialgazette.gov.ph&hl=en-US&gl=US&ceid=US:en",
     website: "officialgazette.gov.ph",
+    isAggregator: true,
   },
   {
     name: "Rappler",
