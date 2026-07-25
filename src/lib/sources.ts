@@ -25,11 +25,13 @@ export const SOURCES: FeedSource[] = [
     feedUrl: "https://decrypt.co/feed",
     website: "decrypt.co",
   },
+  // The Block's RSS URL is dead (404) — pulled via Google News site search
   {
-    name: "The Block",
-    slug: "theblock",
-    feedUrl: "https://www.theblock.co/rss",
+    name: "Google News The Block",
+    slug: "googlenews-theblock",
+    feedUrl: "https://news.google.com/rss/search?q=site:theblock.co&hl=en-US&gl=US&ceid=US:en",
     website: "theblock.co",
+    isAggregator: true,
   },
   {
     name: "Blockworks",
