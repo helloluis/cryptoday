@@ -43,11 +43,13 @@ export const SOURCES: FeedSource[] = [
     feedUrl: "https://bitcoinmagazine.com/feed",
     website: "bitcoinmagazine.com",
   },
+  // CryptoSlate blocks datacenter IPs (403 from VPS) — pulled via Google News site search
   {
-    name: "CryptoSlate",
-    slug: "cryptoslate",
-    feedUrl: "https://cryptoslate.com/feed/",
+    name: "Google News CryptoSlate",
+    slug: "googlenews-cryptoslate",
+    feedUrl: "https://news.google.com/rss/search?q=site:cryptoslate.com&hl=en-US&gl=US&ceid=US:en",
     website: "cryptoslate.com",
+    isAggregator: true,
   },
   {
     name: "The Daily Hodl",
