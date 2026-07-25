@@ -202,13 +202,16 @@ If the list contains items about Philippine politics, government, or regulation 
 Items tagged [ARTICLE] are from professional news outlets and should be your primary source of information. Items tagged [TWEET] are from social media and have a lower standard of accuracy — use them only as supporting color or to note community sentiment, never as the sole basis for a claim.
 
 IMPORTANT: In your summary, wrap key entities in markup tags for highlighting:
-- [name]Person or Company Name[/name] for people, companies, organizations, and exchanges
+- [name]Person or Organization[/name] for people (including politicians and government officials), companies, government agencies and institutions (e.g. Bangko Sentral ng Pilipinas, SEC), and exchanges
 - [ticker]BTC[/ticker] for crypto tickers and asset names
-- [price]$1,234[/price] for dollar amounts, prices, and valuations (include "billion", "million" etc.)
+- [price]$1,234[/price] for prices, amounts, and valuations in any currency (dollars, pesos, etc. — include "billion", "million" etc.)
 - [pct]5.2%[/pct] for percentages
 - [date]March 5[/date] for dates
 
-Example: "[name]BlackRock[/name] filed for a [ticker]BTC[/ticker] spot ETF, pushing the price above [price]$70,000[/price] — a [pct]12%[/pct] gain since [date]January 15[/date]."
+Tag every significant proper noun — do not leave prominent people, agencies, or institutions untagged.
+
+Examples: "[name]BlackRock[/name] filed for a [ticker]BTC[/ticker] spot ETF, pushing the price above [price]$70,000[/price] — a [pct]12%[/pct] gain since [date]January 15[/date]."
+"[name]President Marcos[/name] signed the measure as [name]Bangko Sentral ng Pilipinas[/name] held rates steady, while [name]Sara Duterte[/name] criticized the [price]₱85[/price] wage hike."
 
 Respond with ONLY valid JSON (no markdown, no code fences):
 {"summary":"Your 6-sentence paragraph with markup tags","sentimentScore":0.0,"sentimentLabel":"label"}
