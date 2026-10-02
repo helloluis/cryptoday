@@ -27,6 +27,7 @@ model Article {
   searchQuery    String?
 
   @@index([publishedAt])
+  @@index([fetchedAt, id])
   @@index([hidden])
   @@index([source])
   @@index([category])
@@ -116,6 +117,7 @@ model CryptoPriceHistory {
   timestamp DateTime @default(now())
 
   @@index([symbol, timestamp])
+  @@index([timestamp, id])
 }
 
 model ForexRate {
@@ -134,5 +136,5 @@ model ForexRateHistory {
   timestamp DateTime @default(now())
 
   @@index([pair, timestamp])
+  @@index([timestamp, id])
 }
-

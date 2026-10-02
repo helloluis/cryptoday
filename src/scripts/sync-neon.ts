@@ -1,259 +1,110 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, type Article, type CryptoPriceHistory, type ForexRateHistory, type NewsSummary } from "@prisma/client";
+import { copyConfig, copyHistory } from "./neon-sync";
 
-// Ensure environment variables are loaded
 const databaseUrl = process.env.DATABASE_URL;
 const neonDatabaseUrl = process.env.NEON_DATABASE_URL;
-
 if (!databaseUrl || !neonDatabaseUrl) {
-  console.error("ERROR: DATABASE_URL and NEON_DATABASE_URL environment variables must be set.");
+  console.error("DATABASE_URL and NEON_DATABASE_URL must be set.");
   process.exit(1);
 }
+const sourceHost = new URL(databaseUrl).hostname;
+const destinationHost = new URL(neonDatabaseUrl).hostname;
+if (!destinationHost.endsWith(".neon.tech") || sourceHost === destinationHost) {
+  throw new Error("Refusing mirror: destination must be a separate Neon database");
+}
+const local = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
+const neon = new PrismaClient({ datasources: { db: { url: neonDatabaseUrl } } });
 
-const local = new PrismaClient({
-  datasources: { db: { url: databaseUrl } },
-});
-
-const neon = new PrismaClient({
-  datasources: { db: { url: neonDatabaseUrl } },
-});
-
-async function syncConfigAndCache() {
-  console.log("[Sync] Starting configuration and cache tables sync...");
-
-  // 1. ApiKey
-  const apiKeys = await local.apiKey.findMany();
-  console.log(`[Sync] ApiKeys: Sourced ${apiKeys.length} keys from local.`);
-  for (const item of apiKeys) {
-    await neon.apiKey.upsert({
-      where: { id: item.id },
-      update: { key: item.key, name: item.name, active: item.active },
-      create: { id: item.id, key: item.key, name: item.name, active: item.active, createdAt: item.createdAt },
-    });
+async function main() {
+  const started = Date.now();
+  const [clock] = await local.$queryRaw<{ through: Date }[]>`SELECT CURRENT_TIMESTAMP AS through`;
+  const through = clock.through;
+  console.log(`[${new Date().toISOString()}] Starting batched Neon mirror...`);
+  const execute = (query: Parameters<typeof neon.$executeRaw>[0]) => neon.$executeRaw(query);
+  for (const [table, rows] of [
+    ["ApiKey", await local.apiKey.findMany()],
+    ["CustomSearch", await local.customSearch.findMany()],
+    ["Source", await local.source.findMany()],
+    ["BrandLogo", await local.brandLogo.findMany()],
+  ] as const) {
+    const changed = await copyConfig(table, rows, execute);
+    console.log(`[Sync] ${table}: ${rows.length} checked, ${changed} changed`);
   }
 
-  // 2. CustomSearch
-  const customSearches = await local.customSearch.findMany();
-  console.log(`[Sync] CustomSearch: Sourced ${customSearches.length} items from local.`);
-  for (const item of customSearches) {
-    await neon.customSearch.upsert({
-      where: { id: item.id },
-      update: { query: item.query, provider: item.provider, active: item.active, apiKeyId: item.apiKeyId },
-      create: {
-        id: item.id,
-        query: item.query,
-        provider: item.provider,
-        active: item.active,
-        apiKeyId: item.apiKeyId,
-        createdAt: item.createdAt,
-      },
-    });
-  }
-
-  // 3. Source
-  const sources = await local.source.findMany();
-  console.log(`[Sync] Source: Sourced ${sources.length} sources from local.`);
-  for (const item of sources) {
-    await neon.source.upsert({
-      where: { id: item.id },
-      update: { name: item.name, slug: item.slug, feedUrl: item.feedUrl, active: item.active, category: item.category },
-      create: {
-        id: item.id,
-        name: item.name,
-        slug: item.slug,
-        feedUrl: item.feedUrl,
-        active: item.active,
-        category: item.category,
-      },
-    });
-  }
-
-  // 4. BrandLogo
-  const logos = await local.brandLogo.findMany();
-  console.log(`[Sync] BrandLogo: Sourced ${logos.length} brand logos from local.`);
-  for (const item of logos) {
-    await neon.brandLogo.upsert({
-      where: { id: item.id },
-      update: { brand: item.brand, keywords: item.keywords, filename: item.filename, source: item.source },
-      create: {
-        id: item.id,
-        brand: item.brand,
-        keywords: item.keywords,
-        filename: item.filename,
-        source: item.source,
-        createdAt: item.createdAt,
-      },
-    });
-  }
-
-  // 5. CryptoPrice (Live Cache)
+  // Preserve atomic replacement of the two small live caches.
   const cryptoPrices = await local.cryptoPrice.findMany();
-  console.log(`[Sync] CryptoPrice: Sourced ${cryptoPrices.length} live prices from local.`);
-  // Re-populate live cache table cleanly
   await neon.$transaction([
     neon.cryptoPrice.deleteMany(),
     neon.cryptoPrice.createMany({ data: cryptoPrices, skipDuplicates: true }),
   ]);
-
-  // 6. ForexRate (Live Cache)
   const forexRates = await local.forexRate.findMany();
-  console.log(`[Sync] ForexRate: Sourced ${forexRates.length} live forex rates from local.`);
   await neon.$transaction([
     neon.forexRate.deleteMany(),
     neon.forexRate.createMany({ data: forexRates, skipDuplicates: true }),
   ]);
 
-  console.log("[Sync] Configuration and cache tables sync completed successfully!");
+  const articles = await copyHistory<Article>({
+    through,
+    latest: async () => (await neon.article.aggregate({ _max: { fetchedAt: true } }))._max.fetchedAt,
+    timestamp: (row) => row.fetchedAt,
+    read: ({ from, through, cursor, take }) => local.article.findMany({
+      where: { fetchedAt: { gte: from, lte: through }, ...(cursor ? {
+        OR: [{ fetchedAt: { gt: cursor.at } }, { fetchedAt: cursor.at, id: { gt: cursor.id } }],
+      } : {}) },
+      orderBy: [{ fetchedAt: "asc" }, { id: "asc" }], take,
+    }),
+    write: (data) => neon.article.createMany({ data, skipDuplicates: true }),
+  });
+  console.log(`[Sync] Article: ${articles.read} checked, ${articles.inserted} inserted`);
+
+  const prices = await copyHistory<CryptoPriceHistory>({
+    through,
+    latest: async () => (await neon.cryptoPriceHistory.aggregate({ _max: { timestamp: true } }))._max.timestamp,
+    timestamp: (row) => row.timestamp,
+    read: ({ from, through, cursor, take }) => local.cryptoPriceHistory.findMany({
+      where: { timestamp: { gte: from, lte: through }, ...(cursor ? {
+        OR: [{ timestamp: { gt: cursor.at } }, { timestamp: cursor.at, id: { gt: cursor.id } }],
+      } : {}) },
+      orderBy: [{ timestamp: "asc" }, { id: "asc" }], take,
+    }),
+    write: (data) => neon.cryptoPriceHistory.createMany({ data, skipDuplicates: true }),
+  });
+  console.log(`[Sync] CryptoPriceHistory: ${prices.read} checked, ${prices.inserted} inserted`);
+
+  const forex = await copyHistory<ForexRateHistory>({
+    through,
+    latest: async () => (await neon.forexRateHistory.aggregate({ _max: { timestamp: true } }))._max.timestamp,
+    timestamp: (row) => row.timestamp,
+    read: ({ from, through, cursor, take }) => local.forexRateHistory.findMany({
+      where: { timestamp: { gte: from, lte: through }, ...(cursor ? {
+        OR: [{ timestamp: { gt: cursor.at } }, { timestamp: cursor.at, id: { gt: cursor.id } }],
+      } : {}) },
+      orderBy: [{ timestamp: "asc" }, { id: "asc" }], take,
+    }),
+    write: (data) => neon.forexRateHistory.createMany({ data, skipDuplicates: true }),
+  });
+  console.log(`[Sync] ForexRateHistory: ${forex.read} checked, ${forex.inserted} inserted`);
+
+  const summaries = await copyHistory<NewsSummary>({
+    through,
+    latest: async () => (await neon.newsSummary.aggregate({ _max: { periodStart: true } }))._max.periodStart,
+    timestamp: (row) => row.periodStart,
+    read: ({ from, through, cursor, take }) => local.newsSummary.findMany({
+      where: { periodStart: { gte: from, lte: through }, ...(cursor ? {
+        OR: [{ periodStart: { gt: cursor.at } }, { periodStart: cursor.at, id: { gt: cursor.id } }],
+      } : {}) },
+      orderBy: [{ periodStart: "asc" }, { id: "asc" }], take,
+    }),
+    write: (data) => neon.newsSummary.createMany({ data, skipDuplicates: true }),
+  });
+  console.log(`[Sync] NewsSummary: ${summaries.read} checked, ${summaries.inserted} inserted`);
+  console.log(`[${new Date().toISOString()}] Sync completed successfully in ${((Date.now() - started) / 1000).toFixed(2)}s.`);
 }
 
-async function syncArticles() {
-  console.log("[Sync] Starting Articles delta-sync...");
-
-  // Find max fetchedAt in Neon
-  const maxNeonFetched = await neon.article.aggregate({
-    _max: { fetchedAt: true },
-  });
-
-  const fetchSince = maxNeonFetched._max.fetchedAt;
-  console.log(`[Sync] Neon latest fetchedAt: ${fetchSince ? fetchSince.toISOString() : "None (Full Sync)"}`);
-
-  // Query new articles from local VPS DB
-  const newArticles = await local.article.findMany({
-    where: fetchSince ? { fetchedAt: { gt: fetchSince } } : {},
-    orderBy: { fetchedAt: "asc" },
-  });
-
-  console.log(`[Sync] Found ${newArticles.length} new articles to replicate.`);
-
-  if (newArticles.length === 0) return;
-
-  // Insert in batches of 100
-  const batchSize = 100;
-  let copied = 0;
-
-  for (let i = 0; i < newArticles.length; i += batchSize) {
-    const batch = newArticles.slice(i, i + batchSize);
-    await neon.article.createMany({
-      data: batch,
-      skipDuplicates: true,
-    });
-    copied += batch.length;
-    console.log(`  [Sync] Replicated ${copied}/${newArticles.length} articles...`);
-  }
-
-  console.log("[Sync] Articles delta-sync completed successfully!");
-}
-
-async function syncCryptoPriceHistory() {
-  console.log("[Sync] Starting CryptoPriceHistory delta-sync...");
-
-  const maxNeonTimestamp = await neon.cryptoPriceHistory.aggregate({
-    _max: { timestamp: true },
-  });
-
-  const syncSince = maxNeonTimestamp._max.timestamp;
-  console.log(`[Sync] Neon latest CryptoPriceHistory timestamp: ${syncSince ? syncSince.toISOString() : "None (Full Sync)"}`);
-
-  const newHistory = await local.cryptoPriceHistory.findMany({
-    where: syncSince ? { timestamp: { gt: syncSince } } : {},
-    orderBy: { timestamp: "asc" },
-  });
-
-  console.log(`[Sync] Found ${newHistory.length} new price history entries to replicate.`);
-
-  if (newHistory.length === 0) return;
-
-  // Insert in batches of 1000
-  const batchSize = 1000;
-  let copied = 0;
-
-  for (let i = 0; i < newHistory.length; i += batchSize) {
-    const batch = newHistory.slice(i, i + batchSize);
-    await neon.cryptoPriceHistory.createMany({
-      data: batch,
-      skipDuplicates: true,
-    });
-    copied += batch.length;
-    console.log(`  [Sync] Replicated ${copied}/${newHistory.length} price history entries...`);
-  }
-
-  console.log("[Sync] CryptoPriceHistory delta-sync completed successfully!");
-}
-
-async function syncForexRateHistory() {
-  console.log("[Sync] Starting ForexRateHistory delta-sync...");
-
-  const maxNeonTimestamp = await neon.forexRateHistory.aggregate({
-    _max: { timestamp: true },
-  });
-
-  const syncSince = maxNeonTimestamp._max.timestamp;
-  console.log(`[Sync] Neon latest ForexRateHistory timestamp: ${syncSince ? syncSince.toISOString() : "None (Full Sync)"}`);
-
-  const newHistory = await local.forexRateHistory.findMany({
-    where: syncSince ? { timestamp: { gt: syncSince } } : {},
-    orderBy: { timestamp: "asc" },
-  });
-
-  console.log(`[Sync] Found ${newHistory.length} new forex history entries to replicate.`);
-
-  if (newHistory.length === 0) return;
-
-  await neon.forexRateHistory.createMany({
-    data: newHistory,
-    skipDuplicates: true,
-  });
-
-  console.log(`[Sync] Replicated ${newHistory.length} forex history entries.`);
-  console.log("[Sync] ForexRateHistory delta-sync completed successfully!");
-}
-
-async function syncNewsSummaries() {
-  console.log("[Sync] Starting NewsSummary delta-sync...");
-
-  const maxNeonPeriodStart = await neon.newsSummary.aggregate({
-    _max: { periodStart: true },
-  });
-
-  const syncSince = maxNeonPeriodStart._max.periodStart;
-  console.log(`[Sync] Neon latest NewsSummary periodStart: ${syncSince ? syncSince.toISOString() : "None (Full Sync)"}`);
-
-  const newSummaries = await local.newsSummary.findMany({
-    where: syncSince ? { periodStart: { gt: syncSince } } : {},
-    orderBy: { periodStart: "asc" },
-  });
-
-  console.log(`[Sync] Found ${newSummaries.length} new summaries to replicate.`);
-
-  if (newSummaries.length === 0) return;
-
-  await neon.newsSummary.createMany({
-    data: newSummaries,
-    skipDuplicates: true,
-  });
-
-  console.log(`[Sync] Replicated ${newSummaries.length} news summaries.`);
-  console.log("[Sync] NewsSummary delta-sync completed successfully!");
-}
-
-async function main() {
-  console.log(`[${new Date().toISOString()}] Starting Incremental Sync to Neon...`);
-  const startTime = Date.now();
-
-  try {
-    await syncConfigAndCache();
-    await syncArticles();
-    await syncCryptoPriceHistory();
-    await syncForexRateHistory();
-    await syncNewsSummaries();
-
-    console.log(`[${new Date().toISOString()}] Sync completed successfully in ${((Date.now() - startTime) / 1000).toFixed(2)}s.`);
-  } catch (error) {
-    console.error(`[${new Date().toISOString()}] Sync failed:`, error);
-    process.exit(1);
-  } finally {
-    await local.$disconnect();
-    await neon.$disconnect();
-  }
-}
-
-main();
+main().catch((error: unknown) => {
+  const code = typeof error === "object" && error && "code" in error ? String(error.code) : "unknown";
+  console.error(`[Sync] Mirror failed (${code}); committed pages are safe to replay.`);
+  process.exitCode = 1;
+}).finally(async () => {
+  await Promise.allSettled([local.$disconnect(), neon.$disconnect()]);
+});
