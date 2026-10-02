@@ -5,6 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "prebuild": "npm run build:mirror",
+    "build:mirror": "tsc --skipLibCheck --strict --target ES2022 --moduleResolution node --module commonjs --outDir dist/neon-mirror src/scripts/neon-sync.ts src/scripts/sync-neon.ts",
+    "test:mirror": "tsc --skipLibCheck --strict --target ES2022 --moduleResolution node --module commonjs --esModuleInterop --outDir dist/neon-mirror-test src/scripts/neon-sync.test.ts && node --test dist/neon-mirror-test/neon-sync.test.js",
     "start": "next start",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",

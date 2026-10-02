@@ -1,0 +1,11 @@
+[Unit]
+Description=Mirror Cryptoday every 55 minutes with completion headroom
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=55min
+AccuracySec=1s
+Unit=cryptoday-neon-mirror.service
+
+[Install]
+WantedBy=timers.target

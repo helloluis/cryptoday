@@ -1,0 +1,14 @@
+[Unit]
+Description=Cryptoday incremental disaster-recovery mirror to Neon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/var/www/cryptoday
+ExecStart=/bin/bash /var/www/cryptoday/scripts/mirror-to-neon.sh
+TimeoutStartSec=300
+Restart=on-failure
+RestartSec=60
+UMask=0077
+
